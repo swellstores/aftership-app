@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json.swell.store/model.json",
+  "collection": "shipments",
+  "description": "AfterShip tracking of the shipment",
+  "fields": {
+    "tracking_id": {
+      "type": "string",
+      "description": "AfterShip tracking ID"
+    },
+    "synced": {
+      "type": "string",
+      "description": "Courier and tracking number last sent to AfterShip, e.g. usps:9400…; the shipment is sent again when they change"
+    },
+    "tracking_number": {
+      "type": "string"
+    },
+    "courier": {
+      "type": "string",
+      "description": "AfterShip courier slug, e.g. usps"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["Pending", "InfoReceived", "InTransit", "OutForDelivery", "AttemptFail", "AvailableForPickup", "Delivered", "Exception", "Expired"],
+      "description": "AfterShip delivery status (tag)"
+    },
+    "status_detail": {
+      "type": "string",
+      "description": "AfterShip sub-status message"
+    },
+    "last_event": {
+      "type": "string",
+      "description": "Latest carrier scan and its location"
+    },
+    "last_event_at": {
+      "type": "date"
+    },
+    "estimated_delivery": {
+      "type": "string",
+      "description": "Estimated delivery date or time from AfterShip"
+    },
+    "delivered_at": {
+      "type": "string"
+    },
+    "tracking_url": {
+      "type": "string",
+      "description": "AfterShip tracking page"
+    },
+    "updated_at": {
+      "type": "date",
+      "description": "When AfterShip last updated the tracking; older updates are ignored"
+    },
+    "checked_at": {
+      "type": "date",
+      "description": "When the app last loaded the tracking"
+    },
+    "error": {
+      "type": "string",
+      "description": "Why the shipment couldn't be sent to AfterShip"
+    }
+  }
+}

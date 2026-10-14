@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json.swell.store/content.json",
+  "collection": "orders",
+  "description": "AfterShip tracking on the order page",
+  "fields": [
+    {
+      "id": "aftership_status",
+      "label": "Delivery status",
+      "type": "short_text",
+      "readonly": true
+    },
+    {
+      "id": "aftership_tracking_url",
+      "label": "Tracking page",
+      "type": "url",
+      "readonly": true
+    },
+    {
+      "id": "aftership_estimated_delivery",
+      "label": "Estimated delivery",
+      "type": "short_text",
+      "readonly": true
+    },
+    {
+      "id": "aftership_delivered_at",
+      "label": "Delivered",
+      "type": "short_text",
+      "readonly": true
+    },
+    {
+      "id": "aftership_shipments",
+      "label": "Shipments",
+      "type": "long_text",
+      "readonly": true
+    }
+  ],
+  "views": [
+    {
+      "id": "edit",
+      "tabs": [
+        {
+          "id": "aftership",
+          "label": "AfterShip",
+          "fields": [
+            {
+              "type": "field_row",
+              "fields": [
+                { "id": "aftership_status", "admin_span": 2 },
+                { "id": "aftership_estimated_delivery", "admin_span": 1 },
+                { "id": "aftership_delivered_at", "admin_span": 1 }
+              ]
+            },
+            { "id": "aftership_tracking_url" },
+            { "id": "aftership_shipments" }
+          ]
+        }
+      ]
+    }
+  ]
+}

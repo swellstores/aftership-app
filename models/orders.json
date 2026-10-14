@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json.swell.store/model.json",
+  "collection": "orders",
+  "description": "AfterShip tracking summary of the order's shipments",
+  "fields": {
+    "aftership_status": {
+      "type": "string",
+      "description": "Delivery status of the order's shipments, e.g. In transit or Partly delivered (1 of 2)"
+    },
+    "aftership_tracking_url": {
+      "type": "string",
+      "description": "AfterShip tracking page of the shipment not delivered yet, else the latest one"
+    },
+    "aftership_estimated_delivery": {
+      "type": "string",
+      "description": "Latest estimated delivery of the shipments not delivered yet"
+    },
+    "aftership_delivered_at": {
+      "type": "string",
+      "description": "When the last shipment was delivered, once all are"
+    },
+    "aftership_shipments": {
+      "type": "string",
+      "description": "One line per shipment: number, courier and tracking number, status, latest scan, tracking page"
+    }
+  }
+}

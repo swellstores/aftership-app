@@ -1,0 +1,39 @@
+{
+	"description": "Send shipments to AfterShip and bring tracking status back to Swell",
+	"id": "aftership",
+	"name": "AfterShip",
+	"type": "integration",
+	"version": "1.0.0",
+	"permissions": [],
+	"support_email": "support@swell.is",
+	"repository_url": "https://github.com/swellstores/aftership-app",
+	"integrations": [
+		"aftership"
+	],
+	"images": [
+		{
+			"id": "settings",
+			"title": "Connected with an API key",
+			"description": "Paste your AfterShip API key and webhook secret, then test the connection.",
+			"image_src": "assets/screenshots/1-settings.png"
+		},
+		{
+			"id": "trackings",
+			"title": "Every shipment tracked in AfterShip",
+			"description": "Shipments with a tracking number become AfterShip trackings, with the order and customer attached.",
+			"image_src": "assets/screenshots/2-trackings.png"
+		},
+		{
+			"id": "order",
+			"title": "Delivery status on the order",
+			"description": "Status, estimated delivery and the latest scan on the order's AfterShip tab.",
+			"image_src": "assets/screenshots/3-order.png"
+		},
+		{
+			"id": "import",
+			"title": "Send recent shipments",
+			"description": "Send shipments from the last 7, 30 or 90 days in one click.",
+			"image_src": "assets/screenshots/4-import.png"
+		}
+	]
+}

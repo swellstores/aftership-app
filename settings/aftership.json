@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json.swell.store/setting.json",
+  "label": "AfterShip",
+  "description": "Send Swell shipments to AfterShip as trackings and bring their delivery status back to the order. In AfterShip, create an API key in Settings → API keys and copy the webhook secret from Settings → Webhooks.",
+  "actions": [
+    {
+      "id": "test_connection",
+      "label": "Test connection",
+      "function": "test-connection",
+      "loading_label": "Testing…",
+      "hint": "Checks the API key and the webhook secret"
+    },
+    {
+      "id": "import_shipments",
+      "label": "Send existing shipments",
+      "function": "import-shipments",
+      "loading_label": "Starting…",
+      "hint": "Sends recent shipments with a tracking number that are not in AfterShip yet",
+      "conditions": {
+        "sync_shipments": {
+          "$ne": false
+        }
+      },
+      "modal": {
+        "title": "Send existing shipments",
+        "description": "Creates an AfterShip tracking for each shipment with a tracking number that the app hasn't sent yet, using the current settings. Canceled shipments are skipped. Runs in the background.",
+        "submit_label": "Send shipments",
+        "fields": [
+          {
+            "id": "days",
+            "label": "Shipments created in the last",
+            "type": "select",
+            "default": "30",
+            "options": [
+              {
+                "label": "7 days",
+                "value": "7"
+              },
+              {
+                "label": "30 days",
+                "value": "30"
+              },
+              {
+                "label": "90 days",
+                "value": "90"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "fields": [
+    {
+      "id": "api_key",
+      "label": "API key",
+      "type": "secret",
+      "required": true,
+      "description": "AfterShip → Settings → API keys. A key with the default permissions works; if you restrict it, allow reading and writing trackings."
+    },
+    {
+      "id": "enabled",
+      "label": "Enabled",
+      "type": "boolean",
+      "ui": "toggle",
+      "default": true,
+      "description": "Turns off everything the app sends to AfterShip and ignores incoming webhooks, without uninstalling it"
+    },
+    {
+      "type": "field_group",
+      "label": "Shipments",
+      "description": "Shipments with a tracking number become AfterShip trackings. AfterShip then tracks them with the carrier and, if you've set them up in AfterShip, sends its own notifications to the customer.",
+      "fields": [
+        {
+          "id": "sync_shipments",
+          "label": "Send shipments to AfterShip",
+          "type": "boolean",
+          "ui": "toggle",
+          "default": true,
+          "description": "Creates a tracking when a shipment gets a tracking number, and a new one when the number changes"
+        },
+        {
+          "id": "share_customer",
+          "label": "Share customer contact",
+          "type": "boolean",
+          "ui": "toggle",
+          "default": true,
+          "description": "Sends the customer's name, email and phone with the tracking, so AfterShip notifications can reach them"
+        },
+        {
+          "id": "delete_canceled",
+          "label": "Delete trackings of canceled shipments",
+          "type": "boolean",
+          "ui": "toggle",
+          "default": true,
+          "description": "Deletes the AfterShip tracking when the shipment is canceled or deleted in Swell"
+        },
+        {
+          "id": "shipment_tags",
+          "label": "Tags",
+          "type": "short_text",
+          "default": "swell",
+          "description": "Comma-separated tags added to every tracking in AfterShip"
+        }
+      ]
+    },
+    {
+      "type": "field_group",
+      "label": "Tracking updates",
+      "description": "AfterShip sends status changes to the webhook below; the app also refreshes trackings still in transit every hour.",
+      "fields": [
+        {
+          "id": "webhook_secret",
+          "label": "Webhook secret",
+          "type": "secret",
+          "description": "AfterShip → Settings → Webhooks → webhook secret. Required: webhooks without a valid signature are rejected."
+        },
+        {
+          "id": "webhook_url",
+          "label": "Webhook URL",
+          "type": "short_text",
+          "readonly": true,
+          "default": "https://{store-id}:{public-key}@{store-id}.swell.store/functions/aftership/aftership-webhook",
+          "description": "Replace {store-id} with your store ID and {public-key} with a Swell public key (Developer → API keys; test key for test, live key for live), then add it in AfterShip → Settings → Webhooks."
+        }
+      ]
+    }
+  ]
+}
