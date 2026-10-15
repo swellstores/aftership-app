@@ -1,4 +1,4 @@
-import { APP_ID, connectionError, getSettings, getTracking, isNotFound, verifySignature } from './lib/aftership';
+import { APP_ID, AfterShipError, connectionError, getSettings, getTracking, isNotFound, verifySignature } from './lib/aftership';
 import { applyTracking, findShipment } from './lib/shipments';
 
 export const config: SwellConfig = {
@@ -58,9 +58,9 @@ export async function post(req: SwellRequest) {
       return { received: true, processed: false };
     }
     console.error(`AfterShip: webhook for tracking ${trackingId} failed: ${err?.detail || err?.message || err}`);
-    // temporary errors answer 5xx so AfterShip sends the webhook again later
-    if (err?.retryable) {
-      throw new SwellError(connectionError(err), { status: 503 });
+    // temporary AfterShip errors and errors saving to Swell answer 5xx, so AfterShip sends the webhook again later
+    if (err?.retryable || !(err instanceof AfterShipError)) {
+      throw new SwellError(err instanceof AfterShipError ? connectionError(err) : 'Could not save the tracking update', { status: 503 });
     }
     return { received: true, processed: false };
   }

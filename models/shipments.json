@@ -9,7 +9,7 @@
     },
     "synced": {
       "type": "string",
-      "description": "Courier and tracking number last sent to AfterShip, e.g. usps:9400…; the shipment is sent again when they change"
+      "description": "Courier and tracking number last sent to AfterShip, e.g. usps:9400\u2026; the shipment is sent again when they change"
     },
     "tracking_number": {
       "type": "string"
@@ -20,8 +20,7 @@
     },
     "status": {
       "type": "string",
-      "enum": ["Pending", "InfoReceived", "InTransit", "OutForDelivery", "AttemptFail", "AvailableForPickup", "Delivered", "Exception", "Expired"],
-      "description": "AfterShip delivery status (tag)"
+      "description": "AfterShip delivery status (tag), e.g. InTransit or Delivered"
     },
     "status_detail": {
       "type": "string",

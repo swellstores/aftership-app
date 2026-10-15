@@ -219,7 +219,7 @@ describe("buildTracking", () => {
       destination_postal_code: "78701",
       shipment_tags: ["swell"],
       custom_fields: { swell_shipment_id: SHIPMENT_ID, swell_order_id: "ord_1" },
-      customers: [{ role: "buyer", name: "Jane Doe", email: "jane@example.com", phone_number: "+14155552671" }],
+      customers: [{ name: "Jane Doe", email: "jane@example.com", phone_number: "+14155552671" }],
     });
   });
 
@@ -240,7 +240,7 @@ describe("buildTracking", () => {
       makeSettings(),
     );
     expect(body.destination_country_region).toBe("GBR");
-    expect(body.customers).toEqual([{ role: "buyer", email: "bill@example.com" }]);
+    expect(body.customers).toEqual([{ email: "bill@example.com" }]);
   });
 });
 
@@ -326,6 +326,9 @@ describe("deleteTracking / isNotFound", () => {
   it("recognizes not-found errors", () => {
     expect(isNotFound(new AfterShipError(404, 4004, "x"))).toBe(true);
     expect(isNotFound(new AfterShipError(400, 4004, "x"))).toBe(true);
+    // a 404 without AfterShip's code (e.g. a retired API version) isn't a missing tracking
+    expect(isNotFound(new AfterShipError(404, 404, "x"))).toBe(false);
+    expect(isNotFound(new AfterShipError(404, undefined, "x"))).toBe(false);
     expect(isNotFound(new AfterShipError(400, 4005, "x"))).toBe(false);
     expect(isNotFound(new Error("x"))).toBe(false);
   });
@@ -372,6 +375,7 @@ describe("connectionError", () => {
   it("explains each kind of error", () => {
     expect(connectionError(new AfterShipError(0, undefined, "dns"))).toBe("Couldn't reach AfterShip (dns). Try again later.");
     expect(connectionError(new AfterShipError(401, 401, "x"))).toContain("rejected the API key");
+    expect(connectionError(new AfterShipError(401, 401, "x"))).toContain("AES and RSA signature keys aren't supported");
     expect(connectionError(new AfterShipError(403, 403, "x", "POST /trackings"))).toBe(
       "AfterShip refused POST /trackings (403 Forbidden). Check that the API key is allowed to read and write trackings, and that your AfterShip plan includes API access.",
     );

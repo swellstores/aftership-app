@@ -151,6 +151,12 @@ export default class ImportShipments {
       }
     }
 
+    // a run where AfterShip refused every shipment it tried shouldn't look successful
+    if (totals.failed && !totals.created && !totals.linked) {
+      throw new Error(
+        `Import finished, but AfterShip refused all ${totals.failed} shipments it was sent; the reasons are on each order's AfterShip tab. Totals: ${totalsText(totals)}.`,
+      );
+    }
     console.log(`AfterShip: import of the last ${check.days} days finished: ${totalsText(totals)}`);
     return totals;
   }

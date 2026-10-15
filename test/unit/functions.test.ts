@@ -217,6 +217,13 @@ describe("aftership-webhook", () => {
     expect(stale.swell.put).not.toHaveBeenCalled();
   });
 
+  it("asks AfterShip to retry when the update can't be saved in Swell", async () => {
+    mockAfterShip({ get: ok(makeTracking({ tag: "Delivered" })) });
+    const { req, swell } = await hook({ shipment: sentShipment() });
+    swell.put.mockRejectedValueOnce(new Error("Swell is down"));
+    await expect(webhook(req)).rejects.toMatchObject({ status: 503, message: "Could not save the tracking update" });
+  });
+
   it("asks AfterShip to retry temporary errors only", async () => {
     mockAfterShip({ get: fail(503, 503, "down") });
     await expect((await hook()).run()).rejects.toMatchObject({ status: 503, message: "AfterShip is unavailable (503). Try again later." });

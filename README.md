@@ -37,7 +37,7 @@ The tracking (`POST /trackings`) has:
 | `destination_country_region`, `destination_state`, `destination_city`, `destination_postal_code` | the shipment's destination (else the order's shipping address); the country as ISO alpha-3 |
 | `shipment_tags` | the **Tags** setting |
 | `custom_fields` | `swell_shipment_id` and `swell_order_id`, used to find the shipment when AfterShip sends an update |
-| `customers` | with **Share customer contact** on: the customer's name, email (account, else billing) and phone in E.164 (left out when it can't be formatted) |
+| `customers` | with **Share customer contact** on: the customer's name, email (account, else billing) and phone in E.164 (left out when it can't be formatted); sent when there's an email or phone |
 
 - **Tracking already in AfterShip** (meta code `4003`, for example from a retried event, the import, or the same number
   added in AfterShip directly): the app looks it up by number and courier (`GET /trackings?tracking_numbers=…&slug=…`)
@@ -80,8 +80,9 @@ already gone counts as deleted.
 5. Updates older than the one already saved (by the tracking's `updated_at`) are ignored, so webhooks arriving out of order
    don't overwrite newer status.
 
-Network errors, HTTP 429 and 5xx from AfterShip answer `503`, so AfterShip sends the webhook again later. A tracking that no
-longer exists is acknowledged and ignored; other errors are logged and acknowledged.
+Network errors, HTTP 429 and 5xx from AfterShip, and errors saving the update in Swell, answer `503`, so AfterShip sends
+the webhook again later. A tracking that no longer exists (AfterShip meta code `4004`) is acknowledged and ignored; other
+AfterShip errors are logged and acknowledged.
 
 ### Hourly refresh
 
@@ -93,8 +94,8 @@ trackings, least recently checked first, that:
   for pickup, Exception). Shipments are matched by status rather than by tracking ID, because a `null` in a function's
   query isn't sent as null.
 
-A run stops after 20 seconds. Each checked shipment gets a new `checked_at`, so the next run starts with others. A tracking deleted in AfterShip is
-cleared from the shipment with the error "The tracking was deleted in AfterShip." and isn't refreshed or sent again unless
+A run stops after 20 seconds. Each checked shipment gets a new `checked_at`, so the next run starts with others. A tracking
+deleted in AfterShip (meta code `4004`; a plain 404 isn't treated as deleted) is cleared from the shipment with the error "The tracking was deleted in AfterShip." and isn't refreshed or sent again unless
 the tracking number changes. A rejected API key (401) or forbidden call (403) stops the run.
 
 ### The order's AfterShip tab
@@ -122,6 +123,7 @@ step, by ID; canceled ones aren't loaded) and sends each one exactly as a shipme
 Each run reports: sent, linked to existing trackings, already sent, skipped (draft, no tracking number or order not found) and failed
 (AfterShip refused the shipment; the reason is saved on the shipment and listed on the order's AfterShip tab).
 
+- A run where AfterShip refused every shipment it was sent (none sent or linked) ends as failed, with the totals.
 - It doesn't start, and the run fails with a message, when the app is off, **Send shipments to AfterShip** is off, or the
   API key is missing.
 - Settings are read again before each page. If the app or sending is turned off, or the key removed, during the run, it
@@ -181,8 +183,8 @@ in code.
 
 ## Setup
 
-1. In AfterShip, go to **Settings → API keys** and create an API key. AfterShip's API is part of its paid plans; check
-   that yours includes it.
+1. In AfterShip, go to **Settings → API keys** and create an API key with the **API key** authentication type (AES and
+   RSA signature keys aren't supported). AfterShip's API is part of its paid plans; check that yours includes it.
 2. Install the app in Swell, open its settings, enter the **API key** and save. Run **Test connection**; it should say
    "Connected to AfterShip".
 3. In AfterShip, go to **Settings → Webhooks** and copy the **webhook secret** into the app's **Webhook secret** setting.

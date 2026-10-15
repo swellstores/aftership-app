@@ -149,11 +149,19 @@ describe("import-shipments workflow", () => {
     expect(await new ImportShipments().run(req, makeStep().step)).toEqual({ created: 0, linked: 2, unchanged: 0, skipped: 0, failed: 1 });
   });
 
+  it("fails when AfterShip refused every shipment it was sent", async () => {
+    mockAfterShip({ create: fail(400, 4005, "Invalid tracking number") });
+    const { req } = makeReq([[...shipments(2), makeShipment({ id: "s900", tracking_code: "" })]]);
+    await expect(new ImportShipments().run(req, makeStep().step)).rejects.toThrow(
+      "Import finished, but AfterShip refused all 2 shipments it was sent; the reasons are on each order's AfterShip tab. Totals: sent 0, linked to existing trackings 0, already sent 0, skipped 1, failed 2.",
+    );
+  });
+
   it("fails right away on credential errors with the totals so far", async () => {
     mockAfterShip({ create: fail(401, 401, "Invalid API key") });
     const { req } = makeReq([shipments(2)]);
     await expect(new ImportShipments().run(req, makeStep().step)).rejects.toThrow(
-      "Import failed on page 1. AfterShip rejected the API key (401 Unauthorized). Check the API key in the app settings: copy it again from AfterShip → Settings → API keys. Before failing: sent 0, linked to existing trackings 0, already sent 0, skipped 0, failed 0.",
+      `Import failed on page 1. AfterShip rejected the API key (401 Unauthorized). Check the API key in the app settings: copy it again from AfterShip → Settings → API keys, and use a key with the "API key" authentication type (AES and RSA signature keys aren't supported). Before failing: sent 0, linked to existing trackings 0, already sent 0, skipped 0, failed 0.`,
     );
   });
 

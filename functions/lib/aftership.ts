@@ -277,7 +277,7 @@ export function buildTracking(shipment: any, order: any, settings: AfterShipSett
   if (settings.share_customer && (email || phone)) {
     tracking.customers = [
       Object.fromEntries(
-        Object.entries({ role: 'buyer', name: name || undefined, email: email || undefined, phone_number: phone }).filter(
+        Object.entries({ name: name || undefined, email: email || undefined, phone_number: phone }).filter(
           ([, value]) => value !== undefined,
         ),
       ),
@@ -333,13 +333,15 @@ export async function deleteTracking(settings: Pick<AfterShipSettings, 'api_key'
   try {
     await aftershipRequest(settings, 'DELETE', `/trackings/${encodeURIComponent(id)}`);
   } catch (err) {
-    if (err instanceof AfterShipError && (err.status === 404 || err.code === TRACKING_NOT_FOUND)) return;
+    if (isNotFound(err)) return;
     throw err;
   }
 }
 
+// only AfterShip's "tracking does not exist" (meta code 4004): a plain 404, e.g. from a retired API version, would
+// otherwise clear every tracking
 export function isNotFound(err: unknown): boolean {
-  return err instanceof AfterShipError && (err.status === 404 || err.code === TRACKING_NOT_FOUND);
+  return err instanceof AfterShipError && err.code === TRACKING_NOT_FOUND;
 }
 
 // best estimate of the delivery date AfterShip has
@@ -390,7 +392,7 @@ export function connectionError(err: unknown): string {
     return `Couldn't reach AfterShip (${err.message.replace(/^AfterShip 0: /, '')}). Try again later.`;
   }
   if (err.status === 401) {
-    return 'AfterShip rejected the API key (401 Unauthorized). Check the API key in the app settings: copy it again from AfterShip → Settings → API keys.';
+    return 'AfterShip rejected the API key (401 Unauthorized). Check the API key in the app settings: copy it again from AfterShip → Settings → API keys, and use a key with the "API key" authentication type (AES and RSA signature keys aren\'t supported).';
   }
   if (err.status === 403) {
     return `AfterShip refused ${err.endpoint || 'the request'} (403 Forbidden). Check that the API key is allowed to read and write trackings, and that your AfterShip plan includes API access.`;
