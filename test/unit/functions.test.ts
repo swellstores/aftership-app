@@ -15,7 +15,7 @@ import {
   sentShipment,
 } from "../helpers/aftership-fixtures";
 import { computeSignature } from "../../functions/lib/aftership";
-import shipmentSync, { config as syncConfig } from "../../functions/shipment-sync";
+import shipmentSync, { config as syncConfig, deletedShipment } from "../../functions/shipment-sync";
 import { post as webhook, config as webhookConfig } from "../../functions/aftership-webhook";
 import refreshTracking, { BATCH_SIZE, config as refreshConfig } from "../../functions/refresh-tracking";
 import testConnection, { config as testConfig } from "../../functions/test-connection";
@@ -136,6 +136,26 @@ describe("shipment-sync", () => {
     await shipmentSync(req);
     expect(swell.get).not.toHaveBeenCalledWith("/shipments/{id}", expect.anything());
     expect(callsTo(fetchMock, "/trackings/trk_1", "DELETE")).toHaveLength(1);
+  });
+
+  it("reads a deleted shipment from $event.data, as Swell sends only { $event }", async () => {
+    const fetchMock = mockAfterShip();
+    const { req, swell } = request({ $event: { type: "shipment.deleted", data: sentShipment() } });
+    (req as any).data = { $event: { type: "shipment.deleted", data: sentShipment() } };
+    await shipmentSync(req);
+    expect(callsTo(fetchMock, "/trackings/trk_1", "DELETE")).toHaveLength(1);
+    expect(putsTo(swell, "/orders/ord_1")).toHaveLength(1);
+    expect(logSpy).toHaveBeenCalledWith(`AfterShip: deleted tracking trk_1 of deleted shipment ${SHIPMENT_ID}`);
+  });
+
+  it("does nothing for a deleted event without a shipment", async () => {
+    const fetchMock = mockAfterShip();
+    const { req } = request({});
+    (req as any).data = { $event: { type: "shipment.deleted", data: null } };
+    await shipmentSync(req);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(deletedShipment({ id: "x" })).toEqual({ id: "x" });
+    expect(deletedShipment(null)).toBeNull();
   });
 
   it("keeps trackings when deleting is off, and handles missing shipments and errors", async () => {

@@ -23,18 +23,20 @@ export default async function (req: SwellRequest) {
       return;
     }
     const deleted = type === 'shipment.deleted';
+    // shipment.deleted delivers only { $event }: the deleted shipment, with the app's values, is in $event.data
+    const id = data?.id || data?.$event?.data?.id;
     try {
-      // a deleted shipment can't be loaded any more, so its event data is used
-      const shipment = deleted ? data : await getShipment(swell, data.id);
-      if (!shipment) {
+      const shipment = deleted ? deletedShipment(data) : await getShipment(swell, id);
+      if (!shipment?.id) {
+        console.log(`AfterShip: no shipment in the ${type} event, nothing to delete`);
         return;
       }
       const trackingId = await removeShipment(swell, settings, shipment, { appId, deleted });
       if (trackingId) {
-        console.log(`AfterShip: deleted tracking ${trackingId} of ${deleted ? 'deleted' : 'canceled'} shipment ${data.id}`);
+        console.log(`AfterShip: deleted tracking ${trackingId} of ${deleted ? 'deleted' : 'canceled'} shipment ${id}`);
       }
     } catch (err) {
-      handleError(`deleting the tracking of shipment ${data.id}`, err);
+      handleError(`deleting the tracking of shipment ${id}`, err);
       retryIfTemporary(err);
     }
     return;
@@ -56,6 +58,13 @@ export default async function (req: SwellRequest) {
     handleError(`sending shipment ${data.id}`, err);
     retryIfTemporary(err);
   }
+}
+
+// the deleted shipment: the event's record (shipment.deleted), else the data itself
+export function deletedShipment(data: any): any | null {
+  const record = data?.$event?.data;
+  if (record && typeof record === 'object' && record.id) return record;
+  return data?.id ? data : null;
 }
 
 // network errors, 429 and 5xx are rethrown so Swell runs the event again; that's safe because a tracking

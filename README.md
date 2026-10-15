@@ -61,8 +61,9 @@ already gone counts as deleted.
 
 - A canceled shipment's tracking values are cleared, including `synced`, so the shipment is sent again if it's
   un-canceled.
-- A deleted shipment's event may arrive without the app's values; then the app looks the tracking up by number and deletes
-  it only if its `swell_shipment_id` is that shipment.
+- Swell sends `shipment.deleted` with only `$event`; the deleted shipment, with the app's values, is read from
+  `$event.data`. If it has no tracking ID, the app looks the tracking up by number and deletes it only if its
+  `swell_shipment_id` is that shipment.
 
 ### Tracking updates (webhook)
 
