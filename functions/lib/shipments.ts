@@ -98,8 +98,25 @@ export async function syncShipment(
     return { status: existing ? 'linked' : 'created', tracking_id: tracking.id };
   } catch (err) {
     if (!isShipmentError(err)) throw err;
+    // the old tracking is for the previous number or carrier, so it's deleted even though the new one was refused
+    if (current.tracking_id) {
+      await deleteTracking(settings, current.tracking_id).catch((deleteErr) =>
+        console.error(`AfterShip: couldn't delete old tracking ${current.tracking_id}: ${deleteErr?.message || deleteErr}`),
+      );
+    }
     // saved with the key so it isn't sent again until the tracking number or carrier changes
-    await swell.put(`/shipments/${shipment.id}`, appValues({ synced: key, error: connectionError(err) }, appId));
+    await swell.put(
+      `/shipments/${shipment.id}`,
+      appValues(
+        {
+          ...(current.tracking_id ? { tracking_id: null, status: null, status_detail: null, estimated_delivery: null } : {}),
+          synced: key,
+          error: connectionError(err),
+        },
+        appId,
+      ),
+    );
+    await updateOrderSummary(swell, shipment.order_id, appId);
     return { status: 'failed', reason: err.detail };
   }
 }
@@ -193,7 +210,7 @@ function summaryLine(shipment: any, values: Record<string, any>): string {
   const parts = [
     shipment.number ? `Shipment ${shipment.number}` : 'Shipment',
     [values.courier?.toUpperCase(), values.tracking_number].filter(Boolean).join(' '),
-    values.error && !values.tracking_id ? `Not sent: ${values.error}` : statusLabel(values.status),
+    values.error && !values.tracking_id ? `Not tracked: ${values.error}` : statusLabel(values.status),
     values.last_event,
     values.tracking_url,
   ];

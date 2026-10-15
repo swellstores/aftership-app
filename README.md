@@ -20,8 +20,9 @@ the change touches `tracking_code`, `carrier`, `carrier_name`, `packages`, `canc
 to the shipment don't trigger it again. The function receives the whole shipment; the changed fields are read from the
 event (`$event.data`).
 
-A shipment is sent when it isn't canceled or a draft and has a tracking number: its `tracking_code`, or the first
-package's `tracking_code` when the shipment has none. The app remembers what it sent as `courier:number` (`synced`), and
+A shipment is sent when it isn't canceled or a draft and has a tracking number: its `tracking_code`, or, when it has
+none, the first package `tracking_code` that's set. A shipment without a tracking number is skipped without a log or a line
+on the order's AfterShip tab; it's sent once a number is added. The app remembers what it sent as `courier:number` (`synced`), and
 sends the shipment again only when the tracking number or carrier changes.
 
 The tracking (`POST /trackings`) has:
@@ -29,7 +30,7 @@ The tracking (`POST /trackings`) has:
 | AfterShip field | From Swell |
 |---|---|
 | `tracking_number` | the shipment's tracking number |
-| `slug` | the courier, from the shipment's `carrier` (or `carrier_name`): `usps`, `ups`, `fedex`, `dhl_express` → `dhl`, `canada_post` → `canada-post`, `royal_mail` → `royal-mail` and other names lowercased with `-`. App carriers (`app_…`) and unknown names are left out, and AfterShip detects the courier. |
+| `slug` | the courier, from the shipment's `carrier` (or `carrier_name`): `usps`, `ups`, `fedex`, `dhl_express` → `dhl`, `canada_post` → `canada-post`, `royal_mail` → `royal-mail` (and a few more known differences); any other name made of letters, digits, spaces, `_` or `-` is lowercased with spaces and `_` turned into `-`. When `carrier` is an app carrier (`app_…`), `carrier_name` is used. Left out when there's no usable name, and AfterShip detects the courier. |
 | `title`, `order_id`, `order_number`, `order_date` | `Order #<number>`, the order ID, number and date |
 | `order_id_path` | link to the order in the Swell dashboard |
 | `tracking_ship_date` | when the shipment was created, as `YYYY-MM-DDTHH:mm:ss+00:00` (AfterShip rejects milliseconds; `order_date` is sent the same way) |
@@ -44,7 +45,10 @@ The tracking (`POST /trackings`) has:
 - **Courier refused** (`4010` invalid slug or `4012` bad courier): sent again without `slug`, so AfterShip detects the
   courier from the number.
 - **Tracking number changed**: a new tracking is created and the old one deleted. If deleting fails, the error is logged
-  and the new tracking is still saved.
+  and the new tracking is still saved. If AfterShip refuses the new number, the old tracking is deleted too, and the
+  shipment shows the reason.
+- **Refused by AfterShip** (for example an invalid tracking number): the reason is saved on the shipment and shown on the
+  order's AfterShip tab, and the shipment isn't sent again until its tracking number or carrier changes.
 
 The shipment gets the tracking ID, courier, status, latest scan, estimated delivery and tracking page under
 `$app.aftership` (`models/shipments.json`), and the order's **AfterShip** tab is updated (see below).
@@ -77,7 +81,7 @@ already gone counts as deleted.
    don't overwrite newer status.
 
 Network errors, HTTP 429 and 5xx from AfterShip answer `503`, so AfterShip sends the webhook again later. A tracking that no
-longer exists and other errors are logged and acknowledged.
+longer exists is acknowledged and ignored; other errors are logged and acknowledged.
 
 ### Hourly refresh
 
@@ -103,10 +107,11 @@ the tracking number changes. A rejected API key (401) or forbidden call (403) st
 | Estimated delivery | the latest estimate of the shipments not delivered yet |
 | Delivered | when the last shipment was delivered, once all are |
 | Tracking page | AfterShip tracking page of the first shipment not delivered yet, else of the latest updated one |
-| Shipments | one line per shipment: number, courier and tracking number, status, latest scan and tracking page; or "Not sent:" with AfterShip's reason |
+| Shipments | one line per shipment with a tracking: number, courier and tracking number, status, latest scan and tracking page. A shipment AfterShip refused, or whose tracking was deleted in AfterShip, shows "Not tracked:" with the reason. |
 
 Statuses are AfterShip's tags: Pending, Info received, In transit, Out for delivery, Delivery attempt failed, Ready for
-pickup, Delivered, Exception, Expired. Canceled shipments aren't listed.
+pickup, Delivered, Exception, Expired. Canceled shipments, and shipments the app hasn't sent (no tracking number, a draft,
+or sent before the app was installed), aren't listed.
 
 ### Send existing shipments
 
@@ -208,8 +213,8 @@ shipment already has a newer update). Without a valid signature it answers `401`
 
 ## Limits and known behavior
 
-- **One tracking per shipment.** The shipment's `tracking_code` is used, or its first package's when it has none. Other
-  package numbers aren't sent.
+- **One tracking per shipment.** The shipment's `tracking_code` is used, or the first package number when it has none.
+  Other package numbers aren't sent.
 - **Test and live share one AfterShip account.** Webhooks for live trackings also reach the test webhook URL (and the
   other way round) if both are added; they're ignored because no shipment there has that tracking. When the same number
   is sent from both environments, both shipments link to the one AfterShip tracking.

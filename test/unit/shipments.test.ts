@@ -128,6 +128,26 @@ describe("syncShipment", () => {
     expect(putsTo(swell, shipmentPath)).toEqual([
       { synced: "usps:9434600208192110055280", error: "AfterShip refused POST /trackings: Invalid tracking number" },
     ]);
+    // listed on the order's AfterShip tab
+    expect(putsTo(swell, "/orders/ord_1")).toHaveLength(1);
+  });
+
+  it("deletes the old tracking when a changed number is refused", async () => {
+    const fetchMock = mockAfterShip({ create: fail(400, 4005, "Invalid tracking number") });
+    const swell = makeSwell();
+
+    const result = await syncShipment(swell, makeSettings(), sentShipment({}, { tracking_code: "BAD1" }));
+
+    expect(result.status).toBe("failed");
+    expect(callsTo(fetchMock, "/trackings/trk_1", "DELETE")).toHaveLength(1);
+    expect(putsTo(swell, shipmentPath)[0]).toEqual({
+      tracking_id: null,
+      status: null,
+      status_detail: null,
+      estimated_delivery: null,
+      synced: "usps:BAD1",
+      error: "AfterShip refused POST /trackings: Invalid tracking number",
+    });
   });
 
   it("throws credential and temporary errors without saving", async () => {
@@ -315,7 +335,7 @@ describe("updateOrderSummary", () => {
       aftership_tracking_url: null,
       aftership_estimated_delivery: null,
       aftership_delivered_at: null,
-      aftership_shipments: "Shipment S100012 · Not sent: Invalid number",
+      aftership_shipments: "Shipment S100012 · Not tracked: Invalid number",
     });
 
     const empty = makeSwell();
