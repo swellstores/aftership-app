@@ -17,7 +17,8 @@ API key in the `as-api-key` header (`aftershipRequest` in `functions/lib/aftersh
 
 `functions/shipment-sync.ts` runs on `shipment.created` and `shipment.updated`. `shipment.updated` is handled only when
 the change touches `tracking_code`, `carrier`, `carrier_name`, `packages`, `canceled` or `draft`, so the app's own writes
-to the shipment don't trigger it again.
+to the shipment don't trigger it again. The function receives the whole shipment; the changed fields are read from the
+event (`$event.data`).
 
 A shipment is sent when it isn't canceled or a draft and has a tracking number: its `tracking_code`, or the first
 package's `tracking_code` when the shipment has none. The app remembers what it sent as `courier:number` (`synced`), and
@@ -31,7 +32,7 @@ The tracking (`POST /trackings`) has:
 | `slug` | the courier, from the shipment's `carrier` (or `carrier_name`): `usps`, `ups`, `fedex`, `dhl_express` → `dhl`, `canada_post` → `canada-post`, `royal_mail` → `royal-mail` and other names lowercased with `-`. App carriers (`app_…`) and unknown names are left out, and AfterShip detects the courier. |
 | `title`, `order_id`, `order_number`, `order_date` | `Order #<number>`, the order ID, number and date |
 | `order_id_path` | link to the order in the Swell dashboard |
-| `tracking_ship_date` | when the shipment was created |
+| `tracking_ship_date` | when the shipment was created, as `YYYY-MM-DDTHH:mm:ss+00:00` (AfterShip rejects milliseconds; `order_date` is sent the same way) |
 | `destination_country_region`, `destination_state`, `destination_city`, `destination_postal_code` | the shipment's destination (else the order's shipping address); the country as ISO alpha-3 |
 | `shipment_tags` | the **Tags** setting |
 | `custom_fields` | `swell_shipment_id` and `swell_order_id`, used to find the shipment when AfterShip sends an update |
@@ -84,7 +85,9 @@ longer exists and other errors are logged and acknowledged.
 trackings, least recently checked first, that:
 
 - belong to shipments created in the last 60 days that aren't canceled, and
-- aren't **Delivered** or **Expired** yet.
+- have one of the other statuses (Pending, Info received, In transit, Out for delivery, Delivery attempt failed, Ready
+  for pickup, Exception). Shipments are matched by status rather than by tracking ID, because a `null` in a function's
+  query isn't sent as null.
 
 A run stops after 20 seconds. Each checked shipment gets a new `checked_at`, so the next run starts with others. A tracking deleted in AfterShip is
 cleared from the shipment with the error "The tracking was deleted in AfterShip." and isn't refreshed or sent again unless

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   API_BASE,
   AfterShipError,
+  aftershipDate,
   aftershipRequest,
   appData,
   appValues,
@@ -209,9 +210,9 @@ describe("buildTracking", () => {
       title: "Order #1042",
       order_id: "ord_1",
       order_number: "1042",
-      order_date: "2026-10-09T10:00:00.000Z",
+      order_date: "2026-10-09T10:00:00+00:00",
       order_id_path: `${ADMIN_URL}/orders/ord_1`,
-      tracking_ship_date: "2026-10-10T12:00:00.000Z",
+      tracking_ship_date: "2026-10-10T12:00:00+00:00",
       destination_country_region: "USA",
       destination_state: "TX",
       destination_city: "Austin",
@@ -240,6 +241,15 @@ describe("buildTracking", () => {
     );
     expect(body.destination_country_region).toBe("GBR");
     expect(body.customers).toEqual([{ role: "buyer", email: "bill@example.com" }]);
+  });
+});
+
+describe("aftershipDate", () => {
+  it("formats dates without milliseconds, the way AfterShip accepts them", () => {
+    expect(aftershipDate("2026-10-15T07:08:40.174Z")).toBe("2026-10-15T07:08:40+00:00");
+    expect(aftershipDate("2026-10-15T09:08:40+02:00")).toBe("2026-10-15T07:08:40+00:00");
+    expect(aftershipDate("not a date")).toBeUndefined();
+    expect(aftershipDate(null)).toBeUndefined();
   });
 });
 

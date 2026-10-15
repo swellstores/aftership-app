@@ -160,6 +160,7 @@ export const STATUS_LABELS: Record<string, string> = {
 
 // statuses that won't change any more; trackings in them aren't refreshed
 export const FINAL_STATUSES = ['Delivered', 'Expired'];
+export const OPEN_STATUSES = Object.keys(STATUS_LABELS).filter((tag) => !FINAL_STATUSES.includes(tag));
 
 export function statusLabel(tag: string | null | undefined): string {
   return (tag && STATUS_LABELS[tag]) || tag || 'Pending';
@@ -229,6 +230,13 @@ export function customerName(order: any): string {
   return String(account.name || parts || order?.shipping?.name || '').trim();
 }
 
+// AfterShip accepts YYYY-MM-DDTHH:mm:ssZ dates, without milliseconds
+export function aftershipDate(value: unknown): string | undefined {
+  if (typeof value !== 'string' || !value) return undefined;
+  const time = Date.parse(value);
+  return Number.isNaN(time) ? undefined : new Date(time).toISOString().replace(/\.\d{3}Z$/, '+00:00');
+}
+
 export function orderUrl(adminUrl: string | undefined, orderId: string): string | undefined {
   return adminUrl ? `${adminUrl.replace(/\/+$/, '')}/orders/${orderId}` : undefined;
 }
@@ -254,9 +262,9 @@ export function buildTracking(shipment: any, order: any, settings: AfterShipSett
     title: order?.number ? `Order #${order.number}` : undefined,
     order_id: order?.id,
     order_number: order?.number ? String(order.number) : undefined,
-    order_date: order?.date_created,
+    order_date: aftershipDate(order?.date_created),
     order_id_path: orderUrl(options.adminUrl, order?.id),
-    tracking_ship_date: shipment?.date_created,
+    tracking_ship_date: aftershipDate(shipment?.date_created),
     destination_country_region: country ? getCountryISO3(country) : undefined,
     destination_state: destination.state || undefined,
     destination_city: destination.city || undefined,

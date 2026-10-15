@@ -144,9 +144,8 @@ export function makeSwell(records: Record<string, any> = {}, settings: any = raw
       if (path === "/shipments") {
         const where = query?.where || {};
         if (where.order_id) return { results: records.orderShipments ?? [] };
-        const byTracking = where["$app.aftership.tracking_id"];
-        if (typeof byTracking === "string") return { results: records.found ?? [] };
-        if (byTracking) return { results: records.inTransit ?? [] };
+        if (typeof where["$app.aftership.tracking_id"] === "string") return { results: records.found ?? [] };
+        if (where["$app.aftership.status"]) return { results: records.inTransit ?? [] };
         if (where.date_created) return { results: pages.shift() ?? [] };
       }
       return null;

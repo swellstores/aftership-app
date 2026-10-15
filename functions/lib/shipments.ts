@@ -1,7 +1,7 @@
 import {
   APP_ID,
   AfterShipError,
-  FINAL_STATUSES,
+  OPEN_STATUSES,
   appData,
   appValues,
   connectionError,
@@ -32,12 +32,17 @@ export interface SyncResult {
 // shipment fields that decide what is sent to AfterShip; other updates (including the app's own) are ignored
 const TRACKING_FIELDS = ['tracking_code', 'carrier', 'carrier_name', 'packages', 'canceled', 'draft'];
 
-// true when a shipment event may change its tracking; shipment.updated delivers only the changed fields
+// true when a shipment event may change its tracking. Functions get the whole shipment; the fields the update
+// changed are in $event.data
 export function isTrackingChange(eventType: string | undefined, data: any): boolean {
   if (eventType !== 'shipment.updated') {
     return true;
   }
-  return TRACKING_FIELDS.some((field) => data?.[field] !== undefined);
+  const changed = data?.$event?.data;
+  if (!changed || typeof changed !== 'object') {
+    return true;
+  }
+  return TRACKING_FIELDS.some((field) => changed[field] !== undefined);
 }
 
 export async function getShipment(swell: Pick<SwellClient, 'get'>, id: string): Promise<any> {
@@ -171,16 +176,16 @@ export const MAX_TRACKING_AGE_DAYS = 60;
 export async function getTrackingShipments(swell: Pick<SwellClient, 'get'>, limit: number, appId = APP_ID): Promise<any[]> {
   const prefix = `$app.${appId}`;
   const result = await swell.get('/shipments', {
+    // matched by status only: null in a query isn't sent as null, so { $ne: null } would match every shipment
     where: {
-      [`${prefix}.tracking_id`]: { $ne: null },
-      [`${prefix}.status`]: { $nin: FINAL_STATUSES },
+      [`${prefix}.status`]: { $in: OPEN_STATUSES },
       canceled: { $ne: true },
       date_created: { $gte: new Date(Date.now() - MAX_TRACKING_AGE_DAYS * DAY).toISOString() },
     },
     sort: `${prefix}.checked_at asc`,
     limit,
   });
-  return result?.results || [];
+  return (result?.results || []).filter((shipment: any) => appData(shipment, appId).tracking_id);
 }
 
 // one line per shipment for the order's AfterShip tab

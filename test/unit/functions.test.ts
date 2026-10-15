@@ -44,7 +44,12 @@ const off = { ...rawSettings, enabled: false };
 const shipmentPath = `/shipments/${SHIPMENT_ID}`;
 
 describe("shipment-sync", () => {
-  const event = (type: string, data: Record<string, any> = {}) => ({ id: SHIPMENT_ID, ...data, $event: { type } });
+  // like Swell: the whole shipment, with the changed fields in $event.data
+  const event = (type: string, data: Record<string, any> = {}, changed: Record<string, any> = data) => ({
+    id: SHIPMENT_ID,
+    ...data,
+    $event: { type, data: { id: SHIPMENT_ID, ...changed } },
+  });
 
   it("subscribes to shipment events", () => {
     expect(syncConfig.model?.events).toEqual(["shipment.created", "shipment.updated", "shipment.canceled", "shipment.deleted"]);
@@ -75,7 +80,7 @@ describe("shipment-sync", () => {
 
   it("ignores updates that don't touch tracking, including its own", async () => {
     const fetchMock = mockAfterShip();
-    const { req, swell } = request(event("shipment.updated", { $app: { aftership: { status: "InTransit" } } }));
+    const { req, swell } = request(event("shipment.updated", sentShipment(), { $app: { aftership: { status: "InTransit" } } }));
     await shipmentSync(req);
     expect(swell.get).not.toHaveBeenCalled();
     expect(fetchMock).not.toHaveBeenCalled();

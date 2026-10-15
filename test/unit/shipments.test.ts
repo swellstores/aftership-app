@@ -44,11 +44,14 @@ const shipmentPath = `/shipments/${SHIPMENT_ID}`;
 
 describe("isTrackingChange", () => {
   it("reacts to every created event and to tracking fields on updates", () => {
-    expect(isTrackingChange("shipment.created", {})).toBe(true);
-    expect(isTrackingChange("shipment.updated", { tracking_code: "1" })).toBe(true);
-    expect(isTrackingChange("shipment.updated", { packages: [] })).toBe(true);
-    expect(isTrackingChange("shipment.updated", { $app: { aftership: { status: "Delivered" } } })).toBe(false);
-    expect(isTrackingChange("shipment.updated", { notes: "x" })).toBe(false);
+    // functions get the whole shipment; the update's changed fields are in $event.data
+    const updated = (changed: any) => makeShipment({ $event: { type: "shipment.updated", data: { id: SHIPMENT_ID, ...changed } } });
+    expect(isTrackingChange("shipment.created", makeShipment())).toBe(true);
+    expect(isTrackingChange("shipment.updated", updated({ tracking_code: "1" }))).toBe(true);
+    expect(isTrackingChange("shipment.updated", updated({ packages: [] }))).toBe(true);
+    expect(isTrackingChange("shipment.updated", updated({ $app: { aftership: { status: "Delivered" } } }))).toBe(false);
+    expect(isTrackingChange("shipment.updated", updated({ notes: "x" }))).toBe(false);
+    expect(isTrackingChange("shipment.updated", makeShipment())).toBe(true);
   });
 });
 
@@ -229,14 +232,20 @@ describe("getTrackingShipments", () => {
     const cutoff = new Date(Date.parse("2026-10-14T00:00:00Z") - MAX_TRACKING_AGE_DAYS * 86400000).toISOString();
     expect(swell.get).toHaveBeenCalledWith("/shipments", {
       where: {
-        "$app.aftership.tracking_id": { $ne: null },
-        "$app.aftership.status": { $nin: ["Delivered", "Expired"] },
+        "$app.aftership.status": {
+          $in: ["Pending", "InfoReceived", "InTransit", "OutForDelivery", "AttemptFail", "AvailableForPickup", "Exception"],
+        },
         canceled: { $ne: true },
         date_created: { $gte: cutoff },
       },
       sort: "$app.aftership.checked_at asc",
       limit: 50,
     });
+  });
+
+  it("leaves out shipments without a tracking", async () => {
+    const swell = makeSwell({ inTransit: [sentShipment(), sentShipment({ tracking_id: null }, { id: "s2" }), makeShipment({ id: "s3" })] });
+    expect((await getTrackingShipments(swell, 50)).map((s) => s.id)).toEqual([SHIPMENT_ID]);
   });
 
   it("returns an empty list for empty responses", async () => {
