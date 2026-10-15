@@ -43,7 +43,7 @@ The tracking (`POST /trackings`) has:
   added in AfterShip directly): the app looks it up by number and courier (`GET /trackings?tracking_numbers=…&slug=…`)
   and links the shipment to it instead of creating a second one.
 - **Courier refused** (`4010` invalid slug or `4012` bad courier): sent again without `slug`, so AfterShip detects the
-  courier from the number.
+  courier from the tracking number.
 - **Tracking number changed**: a new tracking is created and the old one deleted. If deleting fails, the error is logged
   and the new tracking is still saved. If AfterShip refuses the new number, the old tracking is deleted too, and the
   shipment shows the reason.
@@ -120,7 +120,7 @@ The **Send existing shipments** action starts the `functions/import-shipments.ts
 shipments created in the last **7**, **30** (default) or **90** days. The workflow pages through those shipments (50 per
 step, by ID; canceled ones aren't loaded) and sends each one exactly as a shipment event would, 3 at a time.
 
-Each run reports: sent, linked to existing trackings, already sent, skipped (draft, no tracking number or order not found) and failed
+Each run reports: sent, linked to existing trackings, already sent (including shipments AfterShip refused before, until their tracking number or carrier changes), skipped (draft, no tracking number or order not found) and failed
 (AfterShip refused the shipment; the reason is saved on the shipment and listed on the order's AfterShip tab).
 
 - A run where AfterShip refused every shipment it was sent (none sent or linked) ends as failed, with the totals.
