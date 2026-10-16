@@ -106,8 +106,8 @@ the tracking number changes. A rejected API key (401) or forbidden call (403) st
 | Field | Value |
 |---|---|
 | Delivery status | the shipments' common status; else **Exception** or **Delivery attempt failed** if any shipment has it; else **Partly delivered (n of m)**; else the first status that isn't Pending |
-| Estimated delivery | the latest estimate of the shipments not delivered yet |
-| Delivered | when the last shipment was delivered, once all are |
+| Estimated delivery | the latest estimate of the shipments not delivered yet, as a date (`YYYY-MM-DD`, the carrier's local date) |
+| Delivered | the date the last shipment was delivered, once all are (`YYYY-MM-DD`, the carrier's local date) |
 | Tracking page | AfterShip tracking page of the first shipment not delivered yet, else of the latest updated one |
 | Shipments | one line per shipment with a tracking: number, courier and tracking number, status, latest scan and tracking page. A shipment AfterShip refused, or whose tracking was deleted in AfterShip, shows "Not tracked:" with the reason and its own tracking number; all values of the old tracking (number, courier, status, latest scan, tracking page, dates) are cleared from the shipment. |
 
@@ -132,8 +132,8 @@ Each run reports: sent, linked to existing trackings, already sent (including sh
 (AfterShip refused the shipment; the reason is saved on the shipment and listed on the order's AfterShip tab).
 
 - A run where AfterShip refused every shipment it was sent (none sent or linked) ends as failed, with the totals.
-- It doesn't start, and the run fails with a message, when the app is off, **Send shipments to AfterShip** is off, or the
-  API key is missing.
+- It doesn't start when the app is off, **Send shipments to AfterShip** is off, or the API key is missing: the action
+  shows the reason as a red error popup and no run is created (the workflow fails the same way if started otherwise).
 - Settings are read again before each page. If the app or sending is turned off, or the key removed, during the run, it
   stops and fails with the totals so far.
 - A rejected API key or forbidden call fails the run right away with the totals so far. Network errors, 429 and 5xx are
@@ -156,8 +156,9 @@ secret.
   exists is linked (`4003`), not created twice, and deleting a tracking that's gone succeeds.
 - Errors about the shipment itself (for example an invalid tracking number) are saved on the shipment with the `synced`
   key, so it isn't sent again on every update; changing the tracking number or carrier sends it again.
-- A rejected API key (401) or forbidden call (403) is logged and not saved, so the shipment is sent on its next tracking
-  change or by **Send existing shipments** once the key is fixed.
+- A rejected API key (401), a forbidden call (403) or a plain 404 (a wrong path or retired API version, not the
+  shipment's fault) is logged and not saved, so the shipment is sent on its next tracking change or by **Send existing
+  shipments** once the cause is fixed.
 
 ### Turning the app off
 
@@ -241,8 +242,8 @@ shipment already has a newer update). Without a valid signature it answers `401`
   at a time.
 - **Refresh window.** The hourly refresh stops after 60 days or once a tracking is Delivered or Expired; webhooks still
   update the shipment after that.
-- **Estimated delivery** is AfterShip's latest estimate, else its own prediction, else the carrier's, as AfterShip gives
-  it (a date or date-time).
+- **Estimated delivery** is AfterShip's latest estimate, else its own prediction, else the carrier's. The shipment keeps
+  it as AfterShip gives it (a date or date-time); the order's tab shows its date.
 - **Shipment edits that don't change tracking** (notes, items) aren't sent; AfterShip keeps what it was sent first.
 
 ## Development

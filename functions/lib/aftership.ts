@@ -377,7 +377,6 @@ export function latestCheckpoint(tracking: any): any | null {
   return checkpoints.length ? checkpoints[checkpoints.length - 1] : null;
 }
 
-// the values stored on the Swell shipment for an AfterShip tracking
 // the tracking values a shipment loses when its tracking is cleared or refused, so the order shows nothing stale
 export const NO_TRACKING = {
   tracking_id: null,
@@ -393,6 +392,7 @@ export const NO_TRACKING = {
   updated_at: null,
 };
 
+// the values stored on the Swell shipment for an AfterShip tracking
 export function trackingValues(tracking: any) {
   const checkpoint = latestCheckpoint(tracking);
   const location = checkpoint

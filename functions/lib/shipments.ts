@@ -58,9 +58,10 @@ async function getOrder(swell: Pick<SwellClient, 'get'>, id: string): Promise<an
   });
 }
 
-// errors about the shipment itself (e.g. an invalid tracking number); credential and temporary errors aren't
+// errors about the shipment itself (e.g. an invalid tracking number); credential and temporary errors aren't, and
+// neither is a 404 (a wrong path or retired API version), which would otherwise mark every shipment as not tracked
 export function isShipmentError(err: unknown): err is AfterShipError {
-  return err instanceof AfterShipError && !err.retryable && err.status !== 401 && err.status !== 403;
+  return err instanceof AfterShipError && !err.retryable && ![401, 403, 404].includes(err.status);
 }
 
 // send a shipment to AfterShip unless its current tracking number was already sent.
@@ -234,6 +235,11 @@ export function orderStatus(statuses: string[]): string | null {
 const latest = (dates: (string | null | undefined)[]) =>
   dates.filter(Boolean).sort((a, b) => Date.parse(b!) - Date.parse(a!))[0] || null;
 
+// the date part of an AfterShip date or date-time, as the carrier reported it (its local date), for the order's tab
+export function dayOf(value: string | null): string | null {
+  return value && /^\d{4}-\d{2}-\d{2}/.test(value) ? value.slice(0, 10) : value;
+}
+
 // the order's AfterShip tab: overall status and one line per shipment
 export async function updateOrderSummary(swell: SwellClient, orderId: string, appId = APP_ID) {
   if (!orderId) return;
@@ -254,8 +260,8 @@ export async function updateOrderSummary(swell: SwellClient, orderId: string, ap
       {
         aftership_status: orderStatus(statuses),
         aftership_tracking_url: (open[0] || newest)?.values.tracking_url || null,
-        aftership_estimated_delivery: allDelivered ? null : latest(open.map(({ values }) => values.estimated_delivery)),
-        aftership_delivered_at: allDelivered ? latest(tracked.map(({ values }) => values.delivered_at)) : null,
+        aftership_estimated_delivery: allDelivered ? null : dayOf(latest(open.map(({ values }) => values.estimated_delivery))),
+        aftership_delivered_at: allDelivered ? dayOf(latest(tracked.map(({ values }) => values.delivered_at))) : null,
         aftership_shipments: entries.map(({ shipment, values }) => summaryLine(shipment, values)).join('\n') || null,
       },
       appId,

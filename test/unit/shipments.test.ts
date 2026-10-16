@@ -5,6 +5,7 @@ import {
   clearTracking,
   findShipment,
   getTrackingShipments,
+  dayOf,
   isShipmentError,
   isTrackingChange,
   orderStatus,
@@ -55,11 +56,22 @@ describe("isTrackingChange", () => {
   });
 });
 
+describe("dayOf", () => {
+  it("keeps the date part of AfterShip dates and date-times", () => {
+    expect(dayOf("2026-10-16")).toBe("2026-10-16");
+    expect(dayOf("2026-10-16T08:00:00+09:00")).toBe("2026-10-16");
+    expect(dayOf(null)).toBeNull();
+    expect(dayOf("soon")).toBe("soon");
+  });
+});
+
 describe("isShipmentError", () => {
   it("is true only for permanent errors about the shipment", () => {
     expect(isShipmentError(new AfterShipError(400, 4005, "x"))).toBe(true);
     expect(isShipmentError(new AfterShipError(401, 401, "x"))).toBe(false);
     expect(isShipmentError(new AfterShipError(403, 403, "x"))).toBe(false);
+    // a plain 404 is a wrong path or retired API version, not a problem with the shipment
+    expect(isShipmentError(new AfterShipError(404, undefined, "Not Found"))).toBe(false);
     expect(isShipmentError(new AfterShipError(500, 500, "x"))).toBe(false);
     expect(isShipmentError(new Error("x"))).toBe(false);
   });
@@ -130,6 +142,13 @@ describe("syncShipment", () => {
     ]);
     // listed on the order's AfterShip tab
     expect(putsTo(swell, "/orders/ord_1")).toHaveLength(1);
+  });
+
+  it("throws a plain 404 instead of marking the shipment as not tracked", async () => {
+    mockAfterShip({ create: { status: 404, body: { meta: { message: "Not Found" } } } as any });
+    const swell = makeSwell();
+    await expect(syncShipment(swell, makeSettings(), makeShipment())).rejects.toMatchObject({ status: 404 });
+    expect(putsTo(swell, shipmentPath)).toHaveLength(0);
   });
 
   it("deletes the old tracking when a changed number is refused", async () => {
@@ -307,7 +326,7 @@ describe("updateOrderSummary", () => {
     const swell = makeSwell({
       orderShipments: [
         sentShipment({ status: "Delivered", delivered_at: "2026-10-12T10:00:00Z", tracking_url: "https://t/1" }),
-        second({ status: "Delivered", delivered_at: "2026-10-13T10:00:00Z", updated_at: "2026-10-13T10:00:00Z", tracking_url: "https://t/2" }),
+        second({ status: "Delivered", delivered_at: "2026-10-13T23:30:00+02:00", updated_at: "2026-10-13T10:00:00Z", tracking_url: "https://t/2" }),
       ],
     });
     await updateOrderSummary(swell, "ord_1");
@@ -315,7 +334,8 @@ describe("updateOrderSummary", () => {
       aftership_status: "Delivered",
       aftership_tracking_url: "https://t/2",
       aftership_estimated_delivery: null,
-      aftership_delivered_at: "2026-10-13T10:00:00Z",
+      // the date as the carrier reported it, not a raw date-time
+      aftership_delivered_at: "2026-10-13",
     });
   });
 
