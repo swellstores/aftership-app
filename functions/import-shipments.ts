@@ -1,11 +1,16 @@
-import { APP_ID, AfterShipError, connectionError, getSettings, missingSettings, type SwellClient } from './lib/aftership';
+import { APP_ID, AfterShipError, adminUrlOf, connectionError, getSettings, missingSettings, type SwellClient } from './lib/aftership';
 import { syncShipment, type SyncStatus } from './lib/shipments';
 
+// started by the start-import action, which passes the environment (workflows get no Swell-Env header) and the period
 export const config: SwellConfig = {
   kind: 'workflow',
   description: 'Send existing shipments to AfterShip',
-  action: true,
 };
+
+// "test" when start-import ran in the test environment; only trusted from a run a function started
+export function runEnv(req: SwellWorkflowRequest): 'test' | null {
+  return req.workflow?.trigger === 'function' && (req.data as any)?.env === 'test' ? 'test' : null;
+}
 
 export const PAGE_SIZE = 50;
 // shipments sent at the same time; AfterShip allows 10 requests a second
@@ -104,6 +109,8 @@ export default class ImportShipments {
     }
 
     const appId = req.appId || APP_ID;
+    // workflows get only the store id, so the dashboard address for order links is built from it
+    const adminUrl = adminUrlOf(req.store, runEnv(req));
     let totals = emptyStats();
     let lastId: string | null = null;
 
@@ -122,7 +129,7 @@ export default class ImportShipments {
         try {
           // shipments already sent come back as unchanged, so a retried page doesn't send them twice
           await eachLimit(shipments, CONCURRENCY, async (shipment) => {
-            const { status, reason } = await syncShipment(req.swell, settings, shipment, { appId, adminUrl: req.store?.admin_url });
+            const { status, reason } = await syncShipment(req.swell, settings, shipment, { appId, adminUrl });
             stats[status as SyncStatus]++;
             if (status === 'failed') console.error(`AfterShip: shipment ${shipment.id} not sent: ${reason}`);
           });

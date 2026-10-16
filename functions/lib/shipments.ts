@@ -1,6 +1,7 @@
 import {
   APP_ID,
   AfterShipError,
+  NO_TRACKING,
   OPEN_STATUSES,
   appData,
   appValues,
@@ -109,7 +110,7 @@ export async function syncShipment(
       `/shipments/${shipment.id}`,
       appValues(
         {
-          ...(current.tracking_id ? { tracking_id: null, status: null, status_detail: null, estimated_delivery: null } : {}),
+          ...NO_TRACKING,
           synced: key,
           error: connectionError(err),
         },
@@ -150,7 +151,7 @@ export async function applyTracking(swell: SwellClient, shipment: any, tracking:
 export async function clearTracking(swell: SwellClient, shipment: any, values: Record<string, any>, appId = APP_ID) {
   await swell.put(
     `/shipments/${shipment.id}`,
-    appValues({ tracking_id: null, status: null, status_detail: null, estimated_delivery: null, ...values }, appId),
+    appValues({ ...NO_TRACKING, ...values }, appId),
   );
   await updateOrderSummary(swell, shipment.order_id, appId);
 }
@@ -209,7 +210,8 @@ export async function getTrackingShipments(swell: Pick<SwellClient, 'get'>, limi
 function summaryLine(shipment: any, values: Record<string, any>): string {
   const parts = [
     shipment.number ? `Shipment ${shipment.number}` : 'Shipment',
-    [values.courier?.toUpperCase(), values.tracking_number].filter(Boolean).join(' '),
+    // a shipment without a tracking shows its own tracking number, not one from a cleared tracking
+    [values.courier?.toUpperCase(), values.tracking_number || trackingNumber(shipment)].filter(Boolean).join(' '),
     values.error && !values.tracking_id ? `Not tracked: ${values.error}` : statusLabel(values.status),
     values.last_event,
     values.tracking_url,

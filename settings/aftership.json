@@ -8,12 +8,12 @@
       "label": "Test connection",
       "function": "test-connection",
       "loading_label": "Testing…",
-      "hint": "Checks the API key and the webhook secret"
+      "hint": "Checks the API key, and that a webhook secret is set"
     },
     {
       "id": "import_shipments",
       "label": "Send existing shipments",
-      "function": "import-shipments",
+      "function": "start-import",
       "loading_label": "Starting…",
       "hint": "Sends recent shipments with a tracking number that are not in AfterShip yet",
       "conditions": {

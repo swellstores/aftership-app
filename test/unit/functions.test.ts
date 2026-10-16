@@ -19,6 +19,7 @@ import shipmentSync, { config as syncConfig, deletedShipment } from "../../funct
 import { post as webhook, config as webhookConfig } from "../../functions/aftership-webhook";
 import refreshTracking, { BATCH_SIZE, config as refreshConfig } from "../../functions/refresh-tracking";
 import testConnection, { config as testConfig } from "../../functions/test-connection";
+import startImport, { config as startConfig } from "../../functions/start-import";
 
 let errorSpy: ReturnType<typeof vi.spyOn>;
 let logSpy: ReturnType<typeof vi.spyOn>;
@@ -34,9 +35,10 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-function request(data: Record<string, any>, records: Record<string, any> = {}, settings: any = rawSettings) {
+// functions get the store's address as admin_url, without /admin
+function request(data: Record<string, any>, records: Record<string, any> = {}, settings: any = rawSettings, headers?: Record<string, string>) {
   const swell = makeSwell(records, settings);
-  const req = createMockRequest({ data, swell: swell as any, store: { admin_url: ADMIN_URL } as any, appId: "aftership" });
+  const req = createMockRequest({ data, swell: swell as any, store: { id: "shop", admin_url: "https://shop.swell.store" } as any, appId: "aftership", headers });
   return { req, swell };
 }
 
@@ -68,6 +70,12 @@ describe("shipment-sync", () => {
     });
     expect(putsTo(swell, shipmentPath)[0]).toMatchObject({ tracking_id: "trk_1" });
     expect(logSpy).toHaveBeenCalledWith(`AfterShip: shipment ${SHIPMENT_ID} sent as tracking trk_1`);
+  });
+
+  it("links the tracking to the test dashboard in the test environment", async () => {
+    const fetchMock = mockAfterShip();
+    await shipmentSync(request(event("shipment.created"), {}, rawSettings, { "Swell-Env": "test" }).req);
+    expect(callsTo(fetchMock, "/trackings", "POST")[0].body.order_id_path).toBe("https://shop.swell.store/admin/test/orders/ord_1");
   });
 
   it("sends a shipment when its tracking number is added later", async () => {
@@ -313,6 +321,19 @@ describe("refresh-tracking", () => {
       expect(swell.get).not.toHaveBeenCalled();
     }
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("start-import", () => {
+  it("starts the import with the period and the environment", async () => {
+    expect(startConfig).toMatchObject({ action: true });
+    for (const [headers, env] of [[{ "Swell-Env": "test" }, "test"], [undefined, null]] as const) {
+      const { req, swell } = request({ days: "7" }, {}, rawSettings, headers as any);
+      const create = vi.fn().mockResolvedValue({ id: "wf_1", status: "active" });
+      (swell as any).workflows = { create };
+      expect(await startImport(req)).toEqual({ message: "Import started. Follow it in the Workflows tab of the app." });
+      expect(create).toHaveBeenCalledWith("import-shipments", { env, days: "7" });
+    }
   });
 });
 

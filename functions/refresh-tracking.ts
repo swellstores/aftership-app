@@ -8,9 +8,10 @@ export const config: SwellConfig = {
   },
 };
 
-// shipments checked per run, and the time a run may take
+// shipments checked per run, and the time a run may take: a function has 10 seconds by default, so the run stops
+// starting new shipments well before that and the rest wait for the next run
 export const BATCH_SIZE = 50;
-export const BUDGET_MS = 20_000;
+export const BUDGET_MS = 7_000;
 
 export interface RefreshSummary {
   checked: number;

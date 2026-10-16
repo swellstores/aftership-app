@@ -86,7 +86,8 @@ export function getSettings(all: any): AfterShipSettings {
     sync_shipments: flag(raw.sync_shipments, true),
     share_customer: flag(raw.share_customer, true),
     delete_canceled: flag(raw.delete_canceled, true),
-    shipment_tags: parseTags(raw.shipment_tags ?? 'swell'),
+    // "swell" until the merchant saves the settings; a cleared field (null or "") means no tags
+    shipment_tags: parseTags(raw.shipment_tags === undefined ? 'swell' : raw.shipment_tags),
   };
 }
 
@@ -237,6 +238,22 @@ export function aftershipDate(value: unknown): string | undefined {
   return Number.isNaN(time) ? undefined : new Date(time).toISOString().replace(/\.\d{3}Z$/, '+00:00');
 }
 
+// "test" when a function runs in the test environment (its Swell-Env header is exactly "test"), otherwise null
+export function swellEnv(req: { headers?: Headers }): 'test' | null {
+  return req.headers?.get('swell-env') === 'test' ? 'test' : null;
+}
+
+// the store's dashboard address. Functions get the store's address as admin_url (without /admin) and workflows only the
+// store id, so it's built from either; test records are under /admin/test
+export function adminUrlOf(store?: { id?: string; admin_url?: string } | null, env?: string | null): string {
+  let url = (store?.admin_url || (store?.id ? `https://${store.id}.swell.store` : '')).replace(/\/+$/, '');
+  if (!url) return '';
+  if (env && url.includes(`/admin/${env}`)) url = url.replace(`/admin/${env}`, '/admin');
+  if (!url.includes('/admin')) url = `${url}/admin`;
+  if (env) url = url.replace('/admin', `/admin/${env}`);
+  return url;
+}
+
 export function orderUrl(adminUrl: string | undefined, orderId: string): string | undefined {
   return adminUrl ? `${adminUrl.replace(/\/+$/, '')}/orders/${orderId}` : undefined;
 }
@@ -361,6 +378,21 @@ export function latestCheckpoint(tracking: any): any | null {
 }
 
 // the values stored on the Swell shipment for an AfterShip tracking
+// the tracking values a shipment loses when its tracking is cleared or refused, so the order shows nothing stale
+export const NO_TRACKING = {
+  tracking_id: null,
+  tracking_number: null,
+  courier: null,
+  status: null,
+  status_detail: null,
+  last_event: null,
+  last_event_at: null,
+  estimated_delivery: null,
+  delivered_at: null,
+  tracking_url: null,
+  updated_at: null,
+};
+
 export function trackingValues(tracking: any) {
   const checkpoint = latestCheckpoint(tracking);
   const location = checkpoint

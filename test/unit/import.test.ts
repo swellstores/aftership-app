@@ -9,6 +9,7 @@ import ImportShipments, {
   fetchShipments,
   parseDays,
   totalsText,
+  runEnv,
 } from "../../functions/import-shipments";
 import { callsTo, fail, makeShipment, makeSwell, mockAfterShip, rawSettings, sentShipment } from "../helpers/aftership-fixtures";
 
@@ -79,8 +80,26 @@ describe("eachLimit", () => {
 });
 
 describe("import-shipments workflow", () => {
-  it("is a workflow started from the settings action", () => {
-    expect(config).toMatchObject({ kind: "workflow", action: true });
+  it("is a workflow started by the start-import action", () => {
+    expect(config).toMatchObject({ kind: "workflow" });
+    expect(config).not.toHaveProperty("action");
+  });
+
+  it("takes the test environment only from a run a function started", () => {
+    const run = (trigger: string, data: any) => ({ data, workflow: { trigger } }) as unknown as SwellWorkflowRequest;
+    expect(runEnv(run("function", { env: "test" }))).toBe("test");
+    expect(runEnv(run("function", { env: "Test" }))).toBeNull();
+    expect(runEnv(run("action", { env: "test" }))).toBeNull();
+  });
+
+  it("links trackings to the order in the dashboard of the run's environment", async () => {
+    for (const [env, path] of [["test", "/admin/test"], [null, "/admin"]] as const) {
+      vi.restoreAllMocks();
+      const fetchMock = mockAfterShip();
+      const { req } = makeReq([shipments(1)], rawSettings, { days: "30", env });
+      await new ImportShipments().run(req, makeStep().step);
+      expect(callsTo(fetchMock, "/trackings", "POST")[0].body.order_id_path).toBe(`https://shop.swell.store${path}/orders/ord_1`);
+    }
   });
 
   function makeStep() {
@@ -99,9 +118,10 @@ describe("import-shipments workflow", () => {
     return { step: step as unknown as SwellWorkflowStep, names, outputs };
   }
 
-  function makeReq(pages: any[][], settings: any = rawSettings, data: any = { days: "30" }) {
+  // a run started by start-import: workflows get only the store id
+  function makeReq(pages: any[][], settings: any = rawSettings, data: any = { days: "30", env: null }) {
     const swell = makeSwell({ pages }, settings);
-    const req = { swell, data, appId: "aftership", store: { admin_url: "https://shop.swell.store/admin" } } as unknown as SwellWorkflowRequest;
+    const req = { swell, data, appId: "aftership", store: { id: "shop" }, workflow: { trigger: "function" } } as unknown as SwellWorkflowRequest;
     return { req, swell };
   }
 

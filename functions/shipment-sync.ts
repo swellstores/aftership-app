@@ -1,4 +1,4 @@
-import { APP_ID, AfterShipError, handleError, loadSettings } from './lib/aftership';
+import { APP_ID, AfterShipError, adminUrlOf, handleError, loadSettings, swellEnv } from './lib/aftership';
 import { getShipment, isTrackingChange, removeShipment, syncShipment } from './lib/shipments';
 
 export const config: SwellConfig = {
@@ -48,7 +48,7 @@ export default async function (req: SwellRequest) {
 
   try {
     const shipment = await getShipment(swell, data.id);
-    const result = await syncShipment(swell, settings, shipment, { appId, adminUrl: req.store?.admin_url });
+    const result = await syncShipment(swell, settings, shipment, { appId, adminUrl: adminUrlOf(req.store, swellEnv(req)) });
     if (result.status === 'created' || result.status === 'linked') {
       console.log(`AfterShip: shipment ${data.id} ${result.status === 'created' ? 'sent as' : 'linked to'} tracking ${result.tracking_id}`);
     } else if (result.status === 'failed') {

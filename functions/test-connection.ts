@@ -1,7 +1,7 @@
 import { aftershipRequest, connectionError, getSettings, missingSettings } from './lib/aftership';
 
 export const config: SwellConfig = {
-  description: 'Check the AfterShip API key and webhook secret',
+  description: 'Check the AfterShip API key, and that a webhook secret is set',
   action: true,
 };
 

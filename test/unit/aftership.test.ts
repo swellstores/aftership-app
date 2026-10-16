@@ -3,6 +3,7 @@ import {
   API_BASE,
   AfterShipError,
   aftershipDate,
+  adminUrlOf,
   aftershipRequest,
   appData,
   appValues,
@@ -25,6 +26,7 @@ import {
   parseTags,
   safeEqual,
   statusLabel,
+  swellEnv,
   syncKey,
   trackingNumber,
   trackingValues,
@@ -64,6 +66,25 @@ describe("appValues / appData", () => {
   });
 });
 
+describe("adminUrlOf / swellEnv", () => {
+  it("builds the dashboard address of the store and environment", () => {
+    expect(adminUrlOf({ id: "shop", admin_url: "https://shop.swell.store" })).toBe("https://shop.swell.store/admin");
+    expect(adminUrlOf({ id: "shop", admin_url: "https://shop.swell.store/admin/" })).toBe("https://shop.swell.store/admin");
+    expect(adminUrlOf({ id: "shop" })).toBe("https://shop.swell.store/admin");
+    expect(adminUrlOf({ id: "shop", admin_url: "https://shop.swell.store" }, "test")).toBe("https://shop.swell.store/admin/test");
+    expect(adminUrlOf({ id: "shop", admin_url: "https://shop.swell.store/admin/test" }, "test")).toBe("https://shop.swell.store/admin/test");
+    expect(adminUrlOf({}, "test")).toBe("");
+    expect(adminUrlOf(undefined)).toBe("");
+  });
+
+  it("reads the test environment only from an exact Swell-Env header", () => {
+    expect(swellEnv({ headers: new Headers({ "Swell-Env": "test" }) })).toBe("test");
+    expect(swellEnv({ headers: new Headers({ "Swell-Env": "Test" }) })).toBeNull();
+    expect(swellEnv({ headers: new Headers() })).toBeNull();
+    expect(swellEnv({})).toBeNull();
+  });
+});
+
 describe("getSettings", () => {
   it("applies defaults", () => {
     expect(getSettings({})).toEqual({
@@ -86,6 +107,9 @@ describe("getSettings", () => {
 
   it("allows no tags", () => {
     expect(getSettings({ aftership: { shipment_tags: "" } }).shipment_tags).toEqual([]);
+    // a cleared field may be saved as null: no tags, not the "swell" default
+    expect(getSettings({ aftership: { shipment_tags: null } }).shipment_tags).toEqual([]);
+    expect(getSettings({ aftership: {} }).shipment_tags).toEqual(["swell"]);
     expect(parseTags(["x", " y "])).toEqual(["x", "y"]);
     expect(parseTags(5)).toEqual([]);
   });

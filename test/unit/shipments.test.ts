@@ -12,7 +12,7 @@ import {
   syncShipment,
   updateOrderSummary,
 } from "../../functions/lib/shipments";
-import { AfterShipError } from "../../functions/lib/aftership";
+import { AfterShipError, NO_TRACKING } from "../../functions/lib/aftership";
 import {
   ADMIN_URL,
   SHIPMENT_ID,
@@ -126,7 +126,7 @@ describe("syncShipment", () => {
     expect(result.status).toBe("failed");
     expect(result.reason).toContain("Invalid tracking number (POST /trackings)");
     expect(putsTo(swell, shipmentPath)).toEqual([
-      { synced: "usps:9434600208192110055280", error: "AfterShip refused POST /trackings: Invalid tracking number" },
+      { ...NO_TRACKING, synced: "usps:9434600208192110055280", error: "AfterShip refused POST /trackings: Invalid tracking number" },
     ]);
     // listed on the order's AfterShip tab
     expect(putsTo(swell, "/orders/ord_1")).toHaveLength(1);
@@ -140,11 +140,9 @@ describe("syncShipment", () => {
 
     expect(result.status).toBe("failed");
     expect(callsTo(fetchMock, "/trackings/trk_1", "DELETE")).toHaveLength(1);
+    // nothing of the old tracking stays: number, courier, last scan and link included
     expect(putsTo(swell, shipmentPath)[0]).toEqual({
-      tracking_id: null,
-      status: null,
-      status_detail: null,
-      estimated_delivery: null,
+      ...NO_TRACKING,
       synced: "usps:BAD1",
       error: "AfterShip refused POST /trackings: Invalid tracking number",
     });
@@ -208,13 +206,7 @@ describe("clearTracking / removeShipment", () => {
   it("clears the tracking and updates the order", async () => {
     const swell = makeSwell();
     await clearTracking(swell, sentShipment(), { error: "gone" });
-    expect(putsTo(swell, shipmentPath)[0]).toEqual({
-      tracking_id: null,
-      status: null,
-      status_detail: null,
-      estimated_delivery: null,
-      error: "gone",
-    });
+    expect(putsTo(swell, shipmentPath)[0]).toEqual({ ...NO_TRACKING, error: "gone" });
     expect(putsTo(swell, "/orders/ord_1")).toHaveLength(1);
   });
 
@@ -335,7 +327,8 @@ describe("updateOrderSummary", () => {
       aftership_tracking_url: null,
       aftership_estimated_delivery: null,
       aftership_delivered_at: null,
-      aftership_shipments: "Shipment S100012 · Not tracked: Invalid number",
+      // the shipment's own tracking number, not one from a cleared tracking
+      aftership_shipments: "Shipment S100012 · 9434600208192110055280 · Not tracked: Invalid number",
     });
 
     const empty = makeSwell();

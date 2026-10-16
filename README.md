@@ -32,7 +32,7 @@ The tracking (`POST /trackings`) has:
 | `tracking_number` | the shipment's tracking number |
 | `slug` | the courier, from the shipment's `carrier` (or `carrier_name`): `usps`, `ups`, `fedex`, `dhl_express` → `dhl`, `canada_post` → `canada-post`, `royal_mail` → `royal-mail` (and a few more known differences); any other name made of letters, digits, spaces, `_` or `-` is lowercased with spaces and `_` turned into `-`. When `carrier` is an app carrier (`app_…`), `carrier_name` is used. Left out when there's no usable name, and AfterShip detects the courier. |
 | `title`, `order_id`, `order_number`, `order_date` | `Order #<number>`, the order ID, number and date |
-| `order_id_path` | link to the order in the Swell dashboard |
+| `order_id_path` | link to the order in the Swell dashboard: `https://<store>.swell.store/admin/orders/<id>`, or `/admin/test/...` in the test environment (the function's `Swell-Env` header is exactly `test`) |
 | `tracking_ship_date` | when the shipment was created, as `YYYY-MM-DDTHH:mm:ss+00:00` (AfterShip rejects milliseconds; `order_date` is sent the same way) |
 | `destination_country_region`, `destination_state`, `destination_city`, `destination_postal_code` | the shipment's destination (else the order's shipping address); the country as ISO alpha-3 |
 | `shipment_tags` | the **Tags** setting |
@@ -95,7 +95,7 @@ trackings, least recently checked first, that:
   for pickup, Exception). Shipments are matched by status rather than by tracking ID, because a `null` in a function's
   query isn't sent as null.
 
-A run stops after 20 seconds. Each checked shipment gets a new `checked_at`, so the next run starts with others. A tracking
+A run stops starting new shipments after 7 seconds, well within the default 10-second function timeout. Each checked shipment gets a new `checked_at`, so the next run starts with others. A tracking
 deleted in AfterShip (meta code `4004`; a plain 404 isn't treated as deleted) is cleared from the shipment with the error "The tracking was deleted in AfterShip." and isn't refreshed or sent again unless
 the tracking number changes. A rejected API key (401) or forbidden call (403) stops the run.
 
@@ -109,7 +109,7 @@ the tracking number changes. A rejected API key (401) or forbidden call (403) st
 | Estimated delivery | the latest estimate of the shipments not delivered yet |
 | Delivered | when the last shipment was delivered, once all are |
 | Tracking page | AfterShip tracking page of the first shipment not delivered yet, else of the latest updated one |
-| Shipments | one line per shipment with a tracking: number, courier and tracking number, status, latest scan and tracking page. A shipment AfterShip refused, or whose tracking was deleted in AfterShip, shows "Not tracked:" with the reason. |
+| Shipments | one line per shipment with a tracking: number, courier and tracking number, status, latest scan and tracking page. A shipment AfterShip refused, or whose tracking was deleted in AfterShip, shows "Not tracked:" with the reason and its own tracking number; all values of the old tracking (number, courier, status, latest scan, tracking page, dates) are cleared from the shipment. |
 
 Statuses are AfterShip's tags: Pending, Info received, In transit, Out for delivery, Delivery attempt failed, Ready for
 pickup, Delivered, Exception, Expired. Canceled shipments, and shipments the app hasn't sent (no tracking number, a draft,
@@ -117,7 +117,11 @@ or sent before the app was installed), aren't listed.
 
 ### Send existing shipments
 
-The **Send existing shipments** action starts the `functions/import-shipments.ts` workflow. In its dialog, choose
+The **Send existing shipments** action runs `functions/start-import.ts`, which starts the `functions/import-shipments.ts`
+workflow (`workflows.create('import-shipments', { env, days })`) and answers "Import started. Follow it in the Workflows
+tab of the app." Workflows get no request headers and only the store id, so the action passes the environment, and the
+workflow builds the order links in AfterShip from the store id (`https://<store>.swell.store/admin`, `/admin/test` in the
+test environment); it trusts `env` only from a run a function started. In its dialog, choose
 shipments created in the last **7**, **30** (default) or **90** days. The workflow pages through those shipments (50 per
 step, by ID; canceled ones aren't loaded) and sends each one exactly as a shipment event would, 3 at a time.
 
@@ -136,8 +140,8 @@ Each run reports: sent, linked to existing trackings, already sent (including sh
 
 ### Test connection
 
-The **Test connection** action lists the couriers turned on in AfterShip (`GET /couriers`), says whether the webhook secret
-is set, and notes when the app is turned off. It works while **Enabled** is off and sends no store data. AfterShip errors
+The **Test connection** action lists the couriers turned on in AfterShip (`GET /couriers`), says whether a webhook secret
+is set (it can't check that the secret is AfterShip's: only a signed webhook shows that), and notes when the app is turned off. It works while **Enabled** is off and sends no store data. AfterShip errors
 are explained: a rejected key (401), a forbidden call (403: key permissions or plan), rate limits (429), and AfterShip
 being unavailable. Only temporary errors say "try again".
 
@@ -174,7 +178,7 @@ in code.
 | Send shipments to AfterShip | no | on | Creates a tracking when a shipment gets a tracking number, and a new one when the number changes. |
 | Share customer contact | no | on | Sends the customer's name, email and phone, so AfterShip notifications can reach them. |
 | Delete trackings of canceled shipments | no | on | Deletes the AfterShip tracking when the shipment is canceled or deleted. |
-| Tags | no | `swell` | Comma-separated tags added to every tracking. Empty: no tags. |
+| Tags | no | `swell` | Comma-separated tags added to every tracking. Empty: no tags (also when the cleared field is saved as null). |
 | **Tracking updates** | | | |
 | Webhook secret | for the webhook | | AfterShip → Settings → Webhooks. Stored as a secret. Without it every webhook is rejected and status comes only from the hourly refresh. |
 | Webhook URL | read-only | `https://{store-id}:{public-key}@{store-id}.swell.store/functions/aftership/aftership-webhook` | The URL pattern to add in AfterShip, with the placeholders replaced. |
@@ -246,6 +250,7 @@ functions/
   aftership-webhook.ts   # public route: signed AfterShip tracking webhooks
   refresh-tracking.ts    # cron, hourly: reload trackings still in transit
   test-connection.ts     # settings action: API key, couriers, webhook secret
+  start-import.ts        # settings action: starts the import with the environment and period
   import-shipments.ts    # workflow: send shipments from the last 7/30/90 days
   lib/aftership.ts       # settings, API client, tracking body and values, errors, webhook signatures
   lib/shipments.ts       # sending, linking, applying updates, order summary
