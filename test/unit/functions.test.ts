@@ -43,6 +43,11 @@ function request(data: Record<string, any>, records: Record<string, any> = {}, s
 }
 
 const off = { ...rawSettings, enabled: false };
+
+// a SwellError with status 400 shows in the admin as a red error popup
+async function expectFailure(promise: Promise<unknown>, message: string) {
+  await expect(promise).rejects.toMatchObject({ name: "SwellError", status: 400, message });
+}
 const shipmentPath = `/shipments/${SHIPMENT_ID}`;
 
 describe("shipment-sync", () => {
@@ -335,6 +340,24 @@ describe("start-import", () => {
       expect(create).toHaveBeenCalledWith("import-shipments", { env, days: "7" });
     }
   });
+
+  it("shows why the import can't start as a red popup, without starting it", async () => {
+    const cases: [any, string][] = [
+      [off, "Import not started: the AfterShip app is turned off in its settings."],
+      [{ ...rawSettings, sync_shipments: false }, "Import not started: Send shipments to AfterShip is off in the app settings."],
+      [{}, "Import not started: add the API key in Apps → AfterShip."],
+    ];
+    for (const [settings, message] of cases) {
+      const { req, swell } = request({ days: "7" }, {}, settings);
+      const create = vi.fn();
+      (swell as any).workflows = { create };
+      await expectFailure(startImport(req), message);
+      expect(create).not.toHaveBeenCalled();
+    }
+    const { req, swell } = request({ days: "7" });
+    (swell as any).workflows = { create: vi.fn().mockRejectedValue(new Error("Workflow 'import-shipments' was not found")) };
+    await expectFailure(startImport(req), "Import not started: Workflow 'import-shipments' was not found");
+  });
 });
 
 describe("test-connection", () => {
@@ -364,14 +387,16 @@ describe("test-connection", () => {
     expect((await run(rawSettings)).message).toContain("1 courier turned on: usps.");
   });
 
-  it("asks for the API key first", async () => {
+  it("asks for the API key first, as a red popup", async () => {
     const fetchMock = mockAfterShip();
-    expect((await run({})).message).toBe("Add the API key and save the settings first.");
+    await expectFailure(run({}), "Add the API key and save the settings first.");
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("explains AfterShip errors", async () => {
+  it("explains AfterShip errors as a red popup", async () => {
     mockAfterShip({ couriers: fail(401, 401, "Invalid API key") });
-    expect((await run(rawSettings)).message).toContain("AfterShip rejected the API key (401 Unauthorized)");
+    const err = await run(rawSettings).catch((e) => e);
+    expect(err).toMatchObject({ name: "SwellError", status: 400 });
+    expect(err.message).toContain("AfterShip rejected the API key (401 Unauthorized)");
   });
 });

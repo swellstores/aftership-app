@@ -86,8 +86,8 @@ export function getSettings(all: any): AfterShipSettings {
     sync_shipments: flag(raw.sync_shipments, true),
     share_customer: flag(raw.share_customer, true),
     delete_canceled: flag(raw.delete_canceled, true),
-    // "swell" until the merchant saves the settings; a cleared field (null or "") means no tags
-    shipment_tags: parseTags(raw.shipment_tags === undefined ? 'swell' : raw.shipment_tags),
+    // optional in AfterShip: no tags unless the merchant enters some
+    shipment_tags: parseTags(raw.shipment_tags),
   };
 }
 

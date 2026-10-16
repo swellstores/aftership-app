@@ -99,8 +99,7 @@
           "id": "shipment_tags",
           "label": "Tags",
           "type": "short_text",
-          "default": "swell",
-          "description": "Comma-separated tags added to every tracking in AfterShip"
+          "description": "Optional. Comma-separated tags added to every tracking in AfterShip, e.g. swell"
         }
       ]
     },

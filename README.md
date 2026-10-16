@@ -121,7 +121,10 @@ The **Send existing shipments** action runs `functions/start-import.ts`, which s
 workflow (`workflows.create('import-shipments', { env, days })`) and answers "Import started. Follow it in the Workflows
 tab of the app." Workflows get no request headers and only the store id, so the action passes the environment, and the
 workflow builds the order links in AfterShip from the store id (`https://<store>.swell.store/admin`, `/admin/test` in the
-test environment); it trusts `env` only from a run a function started. In its dialog, choose
+test environment); it trusts `env` only from a run a function started. Before starting, the action checks **Enabled**,
+**Send shipments to AfterShip** and the API key, and shows "Import not started: …" as a red error popup (a `SwellError`
+with status 400) without starting a run; a run AfterShip or Swell refuses to start is reported the same way. The
+workflow checks the settings again. In its dialog, choose
 shipments created in the last **7**, **30** (default) or **90** days. The workflow pages through those shipments (50 per
 step, by ID; canceled ones aren't loaded) and sends each one exactly as a shipment event would, 3 at a time.
 
@@ -143,7 +146,9 @@ Each run reports: sent, linked to existing trackings, already sent (including sh
 The **Test connection** action lists the couriers turned on in AfterShip (`GET /couriers`), says whether a webhook secret
 is set (it can't check that the secret is AfterShip's: only a signed webhook shows that), and notes when the app is turned off. It works while **Enabled** is off and sends no store data. AfterShip errors
 are explained: a rejected key (401), a forbidden call (403: key permissions or plan), rate limits (429), and AfterShip
-being unavailable. Only temporary errors say "try again".
+being unavailable. Only temporary errors say "try again". A missing API key and every AfterShip error show as a red
+error popup (a `SwellError` with status 400); the result is a regular message, including the note to add a webhook
+secret.
 
 ### Retries and duplicates
 
@@ -178,7 +183,7 @@ in code.
 | Send shipments to AfterShip | no | on | Creates a tracking when a shipment gets a tracking number, and a new one when the number changes. |
 | Share customer contact | no | on | Sends the customer's name, email and phone, so AfterShip notifications can reach them. |
 | Delete trackings of canceled shipments | no | on | Deletes the AfterShip tracking when the shipment is canceled or deleted. |
-| Tags | no | `swell` | Comma-separated tags added to every tracking. Empty: no tags (also when the cleared field is saved as null). |
+| Tags | no | | Optional. Comma-separated tags added to every tracking. Empty: no tags, and `shipment_tags` is left out. |
 | **Tracking updates** | | | |
 | Webhook secret | for the webhook | | AfterShip → Settings → Webhooks. Stored as a secret. Without it every webhook is rejected and status comes only from the hourly refresh. |
 | Webhook URL | read-only | `https://{store-id}:{public-key}@{store-id}.swell.store/functions/aftership/aftership-webhook` | The URL pattern to add in AfterShip, with the placeholders replaced. |

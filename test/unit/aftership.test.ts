@@ -94,7 +94,7 @@ describe("getSettings", () => {
       sync_shipments: true,
       share_customer: true,
       delete_canceled: true,
-      shipment_tags: ["swell"],
+      shipment_tags: [],
     });
   });
 
@@ -107,9 +107,9 @@ describe("getSettings", () => {
 
   it("allows no tags", () => {
     expect(getSettings({ aftership: { shipment_tags: "" } }).shipment_tags).toEqual([]);
-    // a cleared field may be saved as null: no tags, not the "swell" default
+    // tags are optional: none unless entered
     expect(getSettings({ aftership: { shipment_tags: null } }).shipment_tags).toEqual([]);
-    expect(getSettings({ aftership: {} }).shipment_tags).toEqual(["swell"]);
+    expect(getSettings({ aftership: {} }).shipment_tags).toEqual([]);
     expect(parseTags(["x", " y "])).toEqual(["x", "y"]);
     expect(parseTags(5)).toEqual([]);
   });
@@ -228,7 +228,7 @@ describe("formatPhone / customerName", () => {
 
 describe("buildTracking", () => {
   it("sends the tracking with order, destination and customer", () => {
-    expect(buildTracking(makeShipment(), makeOrder(), makeSettings(), { adminUrl: `${ADMIN_URL}/` })).toEqual({
+    expect(buildTracking(makeShipment(), makeOrder(), makeSettings({ shipment_tags: ["swell"] }), { adminUrl: `${ADMIN_URL}/` })).toEqual({
       tracking_number: "9434600208192110055280",
       slug: "usps",
       title: "Order #1042",
@@ -245,6 +245,10 @@ describe("buildTracking", () => {
       custom_fields: { swell_shipment_id: SHIPMENT_ID, swell_order_id: "ord_1" },
       customers: [{ name: "Jane Doe", email: "jane@example.com", phone_number: "+14155552671" }],
     });
+  });
+
+  it("leaves out the tags when there are none", () => {
+    expect(buildTracking(makeShipment(), makeOrder(), makeSettings())).not.toHaveProperty("shipment_tags");
   });
 
   it("leaves out the customer when sharing is off, and the courier when detecting", () => {
