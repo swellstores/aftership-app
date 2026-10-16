@@ -6,6 +6,8 @@
 	"version": "1.0.0",
 	"permissions": [],
 	"support_email": "support@swell.is",
+	"documentation_url": "https://developers.swell.is/app-guides/aftership",
+	"price_external": true,
 	"repository_url": "https://github.com/swellstores/aftership-app",
 	"integrations": [
 		"aftership"
