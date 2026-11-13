@@ -67,10 +67,11 @@ export function deletedShipment(data: any): any | null {
   return data?.id ? data : null;
 }
 
-// network errors, 429 and 5xx are rethrown so Swell runs the event again; that's safe because a tracking
-// that already exists is linked instead of created twice, and deleting one that's gone succeeds
+// AfterShip's network errors, 429 and 5xx, and failed Swell reads or writes (anything that isn't an AfterShipError)
+// are rethrown so Swell runs the event again; that's safe because a tracking that already exists is linked instead of
+// created twice, and deleting one that's gone succeeds. AfterShip's permanent errors (401, 403, 404) aren't retried.
 function retryIfTemporary(err: unknown) {
-  if (err instanceof AfterShipError && err.retryable) {
+  if (!(err instanceof AfterShipError) || err.retryable) {
     throw err;
   }
 }

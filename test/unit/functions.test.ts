@@ -133,6 +133,14 @@ describe("shipment-sync", () => {
     await expect(shipmentSync(req)).rejects.toMatchObject({ status: 503 });
   });
 
+  it("rethrows a failed Swell read or write so Swell retries the event", async () => {
+    mockAfterShip();
+    const { req, swell } = request(event("shipment.created"));
+    swell.get.mockRejectedValueOnce(new Error("Service unavailable"));
+    await expect(shipmentSync(req)).rejects.toThrow("Service unavailable");
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining(`sending shipment ${SHIPMENT_ID} failed: Service unavailable`));
+  });
+
   it("deletes the tracking of a canceled shipment", async () => {
     const fetchMock = mockAfterShip();
     const { req, swell } = request(event("shipment.canceled"), { shipment: sentShipment({}, { canceled: true }) });
@@ -333,6 +341,12 @@ describe("test-connection", () => {
 
   it("is a settings action", () => {
     expect(testConfig.action).toBe(true);
+  });
+
+  it("shows a failed settings read as a red popup with a message", async () => {
+    const { req, swell } = request({});
+    swell.settings.mockRejectedValue(new Error("settings unavailable"));
+    await expectFailure(testConnection(req), "Test connection failed: settings unavailable");
   });
 
   it("reports the couriers and the webhook secret", async () => {

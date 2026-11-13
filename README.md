@@ -129,7 +129,10 @@ step, by ID; canceled ones aren't loaded) and sends each one exactly as a shipme
 Each run reports: sent, linked to existing trackings, already sent (including shipments AfterShip refused before, until their tracking number or carrier changes), skipped (draft, no tracking number or order not found) and failed
 (AfterShip refused the shipment; the reason is saved on the shipment and listed on the order's AfterShip tab).
 
-- A run where AfterShip refused every shipment it was sent (none sent or linked) ends as failed, with the totals.
+- A run where any shipment failed ends as failed, with the totals, so the dashboard shows it as a red error popup:
+  "Import finished, but 2 shipments failed; the reasons are on each order's AfterShip tab. Totals: …", or "… AfterShip
+  refused all 2 shipments it was sent …" when none was sent or linked. A run without failures shows the regular
+  "finished" notice.
 - It doesn't start when the app is off, **Send shipments to AfterShip** is off, or the API key is missing: the run fails
   right away ("Import not started: …"), which the dashboard shows as a red error popup.
 - Settings are read again before each page. If the app or sending is turned off, or the key removed, during the run, it
@@ -144,14 +147,15 @@ Each run reports: sent, linked to existing trackings, already sent (including sh
 The **Test connection** action lists the couriers turned on in AfterShip (`GET /couriers`), says whether a webhook secret
 is set (it can't check that the secret is AfterShip's: only a signed webhook shows that), and notes when the app is turned off. It works while **Enabled** is off and sends no store data. AfterShip errors
 are explained: a rejected key (401), a forbidden call (403: key permissions or plan), rate limits (429), and AfterShip
-being unavailable. Only temporary errors say "try again". A missing API key and every AfterShip error show as a red
-error popup (a `SwellError` with status 400); the result is a regular message, including the note to add a webhook
+being unavailable. Only temporary errors say "try again". A missing API key, every AfterShip error and a failed Swell
+settings read ("Test connection failed: …") show as a red error popup (a `SwellError` with status 400); the result is a regular message, including the note to add a webhook
 secret.
 
 ### Retries and duplicates
 
-- Shipment events rethrow network errors, 429 and 5xx so Swell runs the event again. That's safe: a tracking that already
-  exists is linked (`4003`), not created twice, and deleting a tracking that's gone succeeds.
+- Shipment events rethrow AfterShip's network errors, 429 and 5xx, and failed Swell reads or writes (loading the
+  shipment or order, saving the tracking), so Swell runs the event again. That's safe: a tracking that already exists
+  is linked (`4003`), not created twice, and deleting a tracking that's gone succeeds.
 - Errors about the shipment itself (for example an invalid tracking number) are saved on the shipment with the `synced`
   key, so it isn't sent again on every update; changing the tracking number or carrier sends it again.
 - A rejected API key (401), a forbidden call (403) or a plain 404 (a wrong path or retired API version, not the

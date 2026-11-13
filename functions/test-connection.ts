@@ -15,7 +15,13 @@ function fail(message: string): never {
 
 // works while the app is turned off, so the key can be checked before turning it on
 export default async function (req: SwellRequest) {
-  const settings = getSettings(await req.swell.settings());
+  let settings: ReturnType<typeof getSettings>;
+  try {
+    settings = getSettings(await req.swell.settings());
+  } catch (err) {
+    // a failed Swell read would otherwise reach the admin as a raw error; it's a red popup with a message like the rest
+    fail(`Test connection failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
 
   const missing = missingSettings(settings);
   if (missing.length) {

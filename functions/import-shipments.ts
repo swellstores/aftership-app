@@ -160,10 +160,16 @@ export default class ImportShipments {
       }
     }
 
-    // a run where AfterShip refused every shipment it tried shouldn't look successful
+    // Any failed shipment fails the run: the dashboard shows a completed run as a regular "finished" notice and a
+    // failed one as a red error popup with this message
     if (totals.failed && !totals.created && !totals.linked) {
       throw new Error(
         `Import finished, but AfterShip refused all ${totals.failed} shipments it was sent; the reasons are on each order's AfterShip tab. Totals: ${totalsText(totals)}.`,
+      );
+    }
+    if (totals.failed) {
+      throw new Error(
+        `Import finished, but ${totals.failed} shipment${totals.failed === 1 ? '' : 's'} failed; the reasons are on each order's AfterShip tab. Totals: ${totalsText(totals)}.`,
       );
     }
     console.log(`AfterShip: import of the last ${check.days} days finished: ${totalsText(totals)}`);

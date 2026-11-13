@@ -160,10 +160,12 @@ describe("import-shipments workflow", () => {
     expect(callsTo(fetchMock, "/trackings", "POST")).toHaveLength(PAGE_SIZE + 2);
   });
 
-  it("counts shipments AfterShip refuses and existing trackings", async () => {
+  it("counts existing trackings, and fails the run when any shipment failed so the dashboard shows a red popup", async () => {
     mockAfterShip({ create: [fail(400, 4005, "Invalid tracking number"), fail(400, 4003, "exists")] });
     const { req } = makeReq([shipments(3)]);
-    expect(await new ImportShipments().run(req, makeStep().step)).toEqual({ created: 0, linked: 2, unchanged: 0, skipped: 0, failed: 1 });
+    await expect(new ImportShipments().run(req, makeStep().step)).rejects.toThrow(
+      "Import finished, but 1 shipment failed; the reasons are on each order's AfterShip tab. Totals: sent 0, linked to existing trackings 2, already sent 0, skipped 0, failed 1.",
+    );
   });
 
   it("fails when AfterShip refused every shipment it was sent", async () => {
