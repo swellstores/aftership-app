@@ -117,14 +117,12 @@ or sent before the app was installed), aren't listed.
 
 ### Send existing shipments
 
-The **Send existing shipments** action runs `functions/start-import.ts`, which starts the `functions/import-shipments.ts`
-workflow (`workflows.create('import-shipments', { env, days })`) and answers "Import started. Follow it in the Workflows
-tab of the app." Workflows get no request headers and only the store id, so the action passes the environment, and the
-workflow builds the order links in AfterShip from the store id (`https://<store>.swell.store/admin`, `/admin/test` in the
-test environment); it trusts `env` only from a run a function started. Before starting, the action checks **Enabled**,
-**Send shipments to AfterShip** and the API key, and shows "Import not started: …" as a red error popup (a `SwellError`
-with status 400) without starting a run; a run AfterShip or Swell refuses to start is reported the same way. The
-workflow checks the settings again. In its dialog, choose
+The **Send existing shipments** action starts the `functions/import-shipments.ts` workflow itself (`action: true`),
+with the dialog's period in `req.data.days` and the environment in `req.environmentId`. The dashboard follows the run:
+it shows it as running, doesn't start a second one while it runs, and says when it finished ("finished") or failed (a
+red error popup with the run's error). The workflow builds the order links in AfterShip from the store's address, or
+from the store id when a workflow gets only that (`https://<store>.swell.store/admin`, `/admin/test` in the test
+environment); only the URL's path is changed, so a store id starting with "admin" keeps its host. In its dialog, choose
 shipments created in the last **7**, **30** (default) or **90** days. The workflow pages through those shipments (50 per
 step, by ID; canceled ones aren't loaded) and sends each one exactly as a shipment event would, 3 at a time.
 
@@ -132,8 +130,8 @@ Each run reports: sent, linked to existing trackings, already sent (including sh
 (AfterShip refused the shipment; the reason is saved on the shipment and listed on the order's AfterShip tab).
 
 - A run where AfterShip refused every shipment it was sent (none sent or linked) ends as failed, with the totals.
-- It doesn't start when the app is off, **Send shipments to AfterShip** is off, or the API key is missing: the action
-  shows the reason as a red error popup and no run is created (the workflow fails the same way if started otherwise).
+- It doesn't start when the app is off, **Send shipments to AfterShip** is off, or the API key is missing: the run fails
+  right away ("Import not started: …"), which the dashboard shows as a red error popup.
 - Settings are read again before each page. If the app or sending is turned off, or the key removed, during the run, it
   stops and fails with the totals so far.
 - A rejected API key or forbidden call fails the run right away with the totals so far. Network errors, 429 and 5xx are
@@ -256,8 +254,7 @@ functions/
   aftership-webhook.ts   # public route: signed AfterShip tracking webhooks
   refresh-tracking.ts    # cron, hourly: reload trackings still in transit
   test-connection.ts     # settings action: API key, couriers, webhook secret
-  start-import.ts        # settings action: starts the import with the environment and period
-  import-shipments.ts    # workflow: send shipments from the last 7/30/90 days
+  import-shipments.ts    # workflow started by the Send existing shipments action: last 7/30/90 days
   lib/aftership.ts       # settings, API client, tracking body and values, errors, webhook signatures
   lib/shipments.ts       # sending, linking, applying updates, order summary
   lib/modules.d.ts       # types for country-iso-2-to-3
@@ -282,6 +279,9 @@ swell inspect functions --app=.   # check deployed functions
 swell logs --type function -s AfterShip   # function logs
 swell inspect workflow-runs --workflow app.aftership.import-shipments   # import runs
 ```
+
+Push with Swell CLI 2.9.30 or later: earlier versions don't give workflows `req.environmentId`, so an import started
+in the test environment would link its trackings to the live dashboard.
 
 Tests run in the Cloudflare Workers runtime via `@cloudflare/vitest-pool-workers` and use your `swell login` session (or
 `SWELL_STORE_ID` / `SWELL_SESSION_ID` in CI). Unit tests mock `fetch` by AfterShip endpoint

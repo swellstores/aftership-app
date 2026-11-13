@@ -13,7 +13,7 @@
     {
       "id": "import_shipments",
       "label": "Send existing shipments",
-      "function": "start-import",
+      "function": "import-shipments",
       "loading_label": "Starting…",
       "hint": "Sends recent shipments with a tracking number that are not in AfterShip yet",
       "conditions": {

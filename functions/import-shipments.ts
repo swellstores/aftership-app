@@ -1,15 +1,17 @@
 import { APP_ID, AfterShipError, adminUrlOf, connectionError, getSettings, missingSettings, type SwellClient } from './lib/aftership';
 import { syncShipment, type SyncStatus } from './lib/shipments';
 
-// started by the start-import action, which passes the environment (workflows get no Swell-Env header) and the period
+// Run by the Send existing shipments action, with the modal's period in req.data.days. The action starting the
+// workflow itself lets the dashboard follow the run: it shows it as running, blocks a second run, and reports how it ended.
 export const config: SwellConfig = {
   kind: 'workflow',
   description: 'Send existing shipments to AfterShip',
+  action: true,
 };
 
-// "test" when start-import ran in the test environment; only trusted from a run a function started
-export function runEnv(req: SwellWorkflowRequest): 'test' | null {
-  return req.workflow?.trigger === 'function' && (req.data as any)?.env === 'test' ? 'test' : null;
+// "test" when the run belongs to the test environment (req.environmentId, set by the platform)
+export function runEnv(req: Pick<SwellWorkflowRequest, 'environmentId'>): 'test' | null {
+  return req.environmentId === 'test' ? 'test' : null;
 }
 
 export const PAGE_SIZE = 50;
@@ -109,7 +111,7 @@ export default class ImportShipments {
     }
 
     const appId = req.appId || APP_ID;
-    // workflows get only the store id, so the dashboard address for order links is built from it
+    // a workflow may get only the store id, so the dashboard address for order links can be built from it
     const adminUrl = adminUrlOf(req.store, runEnv(req));
     let totals = emptyStats();
     let lastId: string | null = null;

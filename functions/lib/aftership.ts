@@ -246,12 +246,17 @@ export function swellEnv(req: { headers?: Headers }): 'test' | null {
 // the store's dashboard address. Functions get the store's address as admin_url (without /admin) and workflows only the
 // store id, so it's built from either; test records are under /admin/test
 export function adminUrlOf(store?: { id?: string; admin_url?: string } | null, env?: string | null): string {
-  let url = (store?.admin_url || (store?.id ? `https://${store.id}.swell.store` : '')).replace(/\/+$/, '');
-  if (!url) return '';
-  if (env && url.includes(`/admin/${env}`)) url = url.replace(`/admin/${env}`, '/admin');
-  if (!url.includes('/admin')) url = `${url}/admin`;
-  if (env) url = url.replace('/admin', `/admin/${env}`);
-  return url;
+  const address = store?.admin_url || (store?.id ? `https://${store.id}.swell.store` : '');
+  let url: URL;
+  try {
+    url = new URL(address);
+  } catch {
+    return '';
+  }
+  // Only the path is changed: the host can contain "/admin" too, e.g. https://adminshop.swell.store.
+  // A path that already ends in /admin or /admin/<environment> is reduced to its base before adding the right one.
+  const base = url.pathname.replace(/\/+$/, '').replace(/\/admin(\/[^/]+)?$/, '');
+  return `${url.origin}${base}/admin${env ? `/${env}` : ''}`;
 }
 
 export function orderUrl(adminUrl: string | undefined, orderId: string): string | undefined {

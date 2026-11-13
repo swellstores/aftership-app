@@ -19,7 +19,6 @@ import shipmentSync, { config as syncConfig, deletedShipment } from "../../funct
 import { post as webhook, config as webhookConfig } from "../../functions/aftership-webhook";
 import refreshTracking, { BATCH_SIZE, config as refreshConfig } from "../../functions/refresh-tracking";
 import testConnection, { config as testConfig } from "../../functions/test-connection";
-import startImport, { config as startConfig } from "../../functions/start-import";
 
 let errorSpy: ReturnType<typeof vi.spyOn>;
 let logSpy: ReturnType<typeof vi.spyOn>;
@@ -326,37 +325,6 @@ describe("refresh-tracking", () => {
       expect(swell.get).not.toHaveBeenCalled();
     }
     expect(fetchMock).not.toHaveBeenCalled();
-  });
-});
-
-describe("start-import", () => {
-  it("starts the import with the period and the environment", async () => {
-    expect(startConfig).toMatchObject({ action: true });
-    for (const [headers, env] of [[{ "Swell-Env": "test" }, "test"], [undefined, null]] as const) {
-      const { req, swell } = request({ days: "7" }, {}, rawSettings, headers as any);
-      const create = vi.fn().mockResolvedValue({ id: "wf_1", status: "active" });
-      (swell as any).workflows = { create };
-      expect(await startImport(req)).toEqual({ message: "Import started. Follow it in the Workflows tab of the app." });
-      expect(create).toHaveBeenCalledWith("import-shipments", { env, days: "7" });
-    }
-  });
-
-  it("shows why the import can't start as a red popup, without starting it", async () => {
-    const cases: [any, string][] = [
-      [off, "Import not started: the AfterShip app is turned off in its settings."],
-      [{ ...rawSettings, sync_shipments: false }, "Import not started: Send shipments to AfterShip is off in the app settings."],
-      [{}, "Import not started: add the API key in Apps → AfterShip."],
-    ];
-    for (const [settings, message] of cases) {
-      const { req, swell } = request({ days: "7" }, {}, settings);
-      const create = vi.fn();
-      (swell as any).workflows = { create };
-      await expectFailure(startImport(req), message);
-      expect(create).not.toHaveBeenCalled();
-    }
-    const { req, swell } = request({ days: "7" });
-    (swell as any).workflows = { create: vi.fn().mockRejectedValue(new Error("Workflow 'import-shipments' was not found")) };
-    await expectFailure(startImport(req), "Import not started: Workflow 'import-shipments' was not found");
   });
 });
 
