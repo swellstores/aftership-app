@@ -106,7 +106,7 @@
     {
       "type": "field_group",
       "label": "Tracking updates",
-      "description": "AfterShip sends status changes to the webhook below; the app also refreshes trackings still in transit every hour.",
+      "description": "AfterShip sends status changes to the webhook below; the app also refreshes trackings still in transit every 3 hours.",
       "fields": [
         {
           "id": "webhook_secret",

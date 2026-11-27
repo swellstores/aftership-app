@@ -280,8 +280,8 @@ describe("refresh-tracking", () => {
     return { swell, result: refreshTracking(req) };
   };
 
-  it("runs every hour", () => {
-    expect(refreshConfig.cron?.schedule).toBe("15 * * * *");
+  it("runs every 3 hours", () => {
+    expect(refreshConfig.cron?.schedule).toBe("15 */3 * * *");
   });
 
   it("refreshes trackings still in transit", async () => {
@@ -362,7 +362,7 @@ describe("test-connection", () => {
     mockAfterShip({ couriers: ok({ couriers: [] }) });
     expect((await run({ ...off, webhook_secret: "" })).message).toBe(
       "Connected to AfterShip. No couriers are turned on in AfterShip yet, so it detects the courier from each tracking number. " +
-        "Add the webhook secret from AfterShip → Settings → Webhooks, or tracking updates arrive only with the hourly refresh. " +
+        "Add the webhook secret from AfterShip → Settings → Webhooks, or tracking updates arrive only with the refresh every 3 hours. " +
         "The app is turned off, so nothing is sent until you turn it on.",
     );
     mockAfterShip({ couriers: ok({ couriers: [{ slug: "usps" }] }) });

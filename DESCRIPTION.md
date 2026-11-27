@@ -4,7 +4,7 @@ Connect AfterShip with an API key and your webhook secret. AfterShip then tracks
 
 - **Shipments become trackings.** When a shipment gets a tracking number, it's sent to AfterShip with the order number, ship date, destination, courier and your tags. Change the number or carrier and the tracking is replaced.
 - **Delivery status on the order.** Each order's AfterShip tab shows the delivery status, estimated delivery, delivery date and tracking page, with a line for every shipment and its latest scan.
-- **Updates as the carrier scans.** AfterShip sends status changes to Swell through a signed webhook, and the app checks trackings still in transit every hour.
+- **Updates as the carrier scans.** AfterShip sends status changes to Swell through a signed webhook, and the app checks trackings still in transit every 3 hours.
 - **Notifications that reach your customers.** Share each customer's name, email and phone number with AfterShip, so its tracking notifications reach them.
 - **Canceled shipments cleaned up.** Canceling or deleting a shipment in Swell deletes its AfterShip tracking.
 - **Bring in recent shipments.** Send shipments from the last 7, 30 or 90 days from the Actions menu. The import runs in the background, and each run shows on the app's Workflows tab.

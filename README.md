@@ -3,7 +3,7 @@
 A Swell app that sends Swell shipments to [AfterShip](https://www.aftership.com/) as trackings, and brings their delivery
 status back to the order. AfterShip then tracks each parcel with the carrier and, if you've set them up in AfterShip, sends
 its own branded notifications to the customer. The app connects with an AfterShip **API key** and receives status changes
-through a signed AfterShip webhook, with an hourly refresh as a fallback.
+through a signed AfterShip webhook, with a refresh every 3 hours as a fallback.
 
 ## Features
 
@@ -85,9 +85,9 @@ Network errors, HTTP 429 and 5xx from AfterShip, and errors saving the update in
 the webhook again later. A tracking that no longer exists (AfterShip meta code `4004`) is acknowledged and ignored; other
 AfterShip errors are logged and acknowledged.
 
-### Hourly refresh
+### Refresh every 3 hours
 
-`functions/refresh-tracking.ts` runs every hour at minute 15, as a fallback for missed webhooks. It reloads up to 50
+`functions/refresh-tracking.ts` runs every 3 hours at minute 15, as a fallback for missed webhooks. It reloads up to 50
 trackings, least recently checked first, that:
 
 - belong to shipments created in the last 60 days that aren't canceled, and
@@ -168,7 +168,7 @@ With **Enabled** off nothing is sent to AfterShip and nothing is saved from it:
 
 - shipment events return before loading any record, so no trackings are created or deleted;
 - the webhook still checks signatures, then acknowledges events without calling AfterShip;
-- the hourly refresh does nothing;
+- the scheduled refresh does nothing;
 - **Send existing shipments** doesn't start, and a running import stops before its next page.
 
 **Test connection** still works, so you can check the API key before turning the app on.
@@ -188,7 +188,7 @@ in code.
 | Delete trackings of canceled shipments | no | on | Deletes the AfterShip tracking when the shipment is canceled or deleted. |
 | Tags | no | | Optional. Comma-separated tags added to every tracking. Empty: no tags, and `shipment_tags` is left out. |
 | **Tracking updates** | | | |
-| Webhook secret | for the webhook | | AfterShip → Settings → Webhooks. Stored as a secret. Without it every webhook is rejected and status comes only from the hourly refresh. |
+| Webhook secret | for the webhook | | AfterShip → Settings → Webhooks. Stored as a secret. Without it every webhook is rejected and status comes only from the refresh every 3 hours. |
 | Webhook URL | read-only | `https://{store-id}:{public-key}@{store-id}.swell.store/functions/aftership/aftership-webhook` | The URL pattern to add in AfterShip, with the placeholders replaced. |
 
 **Actions** (Actions menu on the app's settings page): **Test connection** and **Send existing shipments** (shown while
@@ -242,7 +242,7 @@ shipment already has a newer update). Without a valid signature it answers `401`
 - **Rate limit.** AfterShip allows 10 requests a second by default. A shipment event makes 1–4 calls (create; a second create
   without the courier when it's refused; a lookup on `4003`; a delete when the number changed). The import sends 3 shipments at a time, and the refresh checks one tracking
   at a time.
-- **Refresh window.** The hourly refresh stops after 60 days or once a tracking is Delivered or Expired; webhooks still
+- **Refresh window.** The scheduled refresh stops after 60 days or once a tracking is Delivered or Expired; webhooks still
   update the shipment after that.
 - **Estimated delivery** is AfterShip's latest estimate, else its own prediction, else the carrier's. The shipment keeps
   it as AfterShip gives it (a date or date-time); the order's tab shows its date.
@@ -256,7 +256,7 @@ shipment already has a newer update). Without a valid signature it answers `401`
 functions/
   shipment-sync.ts       # shipment.created/updated → tracking; canceled/deleted → delete tracking
   aftership-webhook.ts   # public route: signed AfterShip tracking webhooks
-  refresh-tracking.ts    # cron, hourly: reload trackings still in transit
+  refresh-tracking.ts    # cron, every 3 hours: reload trackings still in transit
   test-connection.ts     # settings action: API key, couriers, webhook secret
   import-shipments.ts    # workflow started by the Send existing shipments action: last 7/30/90 days
   lib/aftership.ts       # settings, API client, tracking body and values, errors, webhook signatures

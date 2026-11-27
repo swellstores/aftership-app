@@ -45,7 +45,7 @@ export default async function (req: SwellRequest) {
   notes.push(
     settings.webhook_secret
       ? 'Webhook secret is set.'
-      : 'Add the webhook secret from AfterShip → Settings → Webhooks, or tracking updates arrive only with the hourly refresh.',
+      : 'Add the webhook secret from AfterShip → Settings → Webhooks, or tracking updates arrive only with the refresh every 3 hours.',
   );
   if (!settings.enabled) {
     notes.push('The app is turned off, so nothing is sent until you turn it on.');

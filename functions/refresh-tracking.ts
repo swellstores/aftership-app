@@ -4,7 +4,7 @@ import { applyTracking, clearTracking, getTrackingShipments } from './lib/shipme
 export const config: SwellConfig = {
   description: 'Refresh AfterShip tracking for shipments in transit',
   cron: {
-    schedule: '15 * * * *',
+    schedule: '15 */3 * * *',
   },
 };
 
