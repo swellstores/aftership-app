@@ -5,6 +5,8 @@ export const config: SwellConfig = {
   description: 'Refresh AfterShip tracking for shipments in transit',
   cron: {
     schedule: '15 */3 * * *',
+    // Skipped while the app is off or has no API key
+    conditions: { $settings: { aftership: { enabled: { $ne: false }, api_key: { $empty: false } } } },
   },
 };
 
