@@ -295,3 +295,7 @@ To try it end to end, use an AfterShip account with API access, set its API key 
 environment, add the test webhook URL in AfterShip, and create a shipment with a real tracking number on a test order.
 
 Workflows don't run under `swell app dev`; the action always starts the pushed version.
+
+## License
+
+MIT. See [LICENSE](LICENSE). Contributions are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md).
